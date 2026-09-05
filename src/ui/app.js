@@ -577,6 +577,19 @@
 
     const body = el('div', 'rp-body');
 
+    // การ์ด 0 — คำแนะนำสำหรับเดือนนี้
+    const adv = rep.advice;
+    if (adv && adv.lines && adv.lines.length) {
+      const c0 = el('div', 'rp-card');
+      c0.innerHTML = `<h4>คำแนะนำ — ${adv.days} วัน · ${adv.staff} คน · หยุด ${adv.quota} · ต้องการ ${adv.shiftsNeeded} กะ</h4>`;
+      const cls = { over: 'warn', under: 'error', tight: 'warn' }[adv.status] || '';
+      adv.lines.forEach((line, i) => c0.appendChild(el('div', 'rp-line ' + (i === 0 ? cls : ''), (i === 0 ? '' : '• ') + line)));
+      if (adv.table && adv.table.length > 1) {
+        c0.appendChild(el('div', 'rp-line', 'คน → เวรคู่:  ' + adv.table.map((x) => `${x.staff}→${x.doubles}`).join('   ')));
+      }
+      body.appendChild(c0);
+    }
+
     // การ์ด 1 — ความเป็นไปได้
     const c1 = el('div', 'rp-card');
     c1.innerHTML = `<h4>ความเป็นไปได้</h4>

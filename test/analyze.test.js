@@ -7,7 +7,7 @@ import { parseRoster } from '../src/engine/io.js';
 import {
   makeRoster, mergeRules, getCell, setCellShifts, setCellOff, OFF,
 } from '../src/engine/model.js';
-import { analyze } from '../src/engine/analyze.js';
+import { analyze, advise } from '../src/engine/analyze.js';
 
 const FIXTURE = JSON.parse(
   readFileSync(fileURLToPath(new URL('./fixtures/sample.json', import.meta.url)), 'utf8'),
@@ -127,4 +127,50 @@ test('analyze: restShort เฉพาะเมื่อกรอกครบแ�
   const v = analyze(roster, rules).violations.filter((x) => x.type === 'restShort');
   assert.equal(v.length, 1);
   assert.equal(v[0].count, 1);
+});
+
+test('advise: เดือน ต.ค. (31 วัน) ช5/บ4/ด3 หยุด 8', () => {
+  const mk = (N) => makeRoster({
+    days: 31, firstWeekday: 'พฤหัสบดี', year: 2569, month: 10,
+    staff: Array.from({ length: N }, (_, i) => ({ name: 'พ' + (i + 1) })),
+  });
+  const rules = mergeRules({ target: { 'ช': 5, 'บ': 4, 'ด': 3 }, offQuota: 8, maxDoublesPerPerson: 5 });
+
+  const a16 = advise(mk(16), rules);
+  assert.equal(a16.status, 'ok');
+  assert.equal(a16.shiftsNeeded, 372);
+  assert.equal(a16.doublesNeeded, 4);
+  assert.deepEqual(a16.feasibleStaff, { min: 14, max: 16 });
+
+  const a14 = advise(mk(14), rules);
+  assert.equal(a14.status, 'tight');       // 50 doubles = แน่น
+  assert.equal(a14.doublesNeeded, 50);
+  assert.ok(a14.lines.some((l) => l.includes('16 คน')), 'ต้องแนะนำเพิ่มเป็น 16 คน');
+
+  const a18 = advise(mk(18), rules);
+  assert.equal(a18.status, 'over');        // คนล้น
+  assert.ok(a18.doublesNeeded < 0);
+  assert.ok(a18.lines.some((l) => l.includes('ลดเหลือ 16 คน')));
+});
+
+test('advise: คนน้อยเกินเพดานเวรคู่ → under + แนะนำเพิ่มคน', () => {
+  const roster = makeRoster({
+    days: 31, firstWeekday: 'พฤหัสบดี',
+    staff: Array.from({ length: 12 }, (_, i) => ({ name: 'พ' + (i + 1) })),
+  });
+  const a = advise(roster, mergeRules({ target: { 'ช': 5, 'บ': 4, 'ด': 3 }, offQuota: 8, maxDoublesPerPerson: 4 }));
+  assert.equal(a.status, 'under');
+  assert.ok(a.doublesNeeded > a.doubleCapacity);
+});
+
+test('advise: ลา/อบรม ดันจำนวนคนที่ต้องใช้ให้มากขึ้น', () => {
+  const base = makeRoster({
+    days: 31, firstWeekday: 'พฤหัสบดี',
+    staff: Array.from({ length: 16 }, (_, i) => ({ name: 'พ' + (i + 1) })),
+  });
+  const rules = mergeRules({ target: { 'ช': 5, 'บ': 4, 'ด': 3 }, offQuota: 8, maxDoublesPerPerson: 5 });
+  const before = advise(base, rules).doublesNeeded;
+  for (let d = 0; d < 10; d++) setCellOff(getCell(base, 0, d), OFF.LEAVE);
+  const after = advise(base, rules).doublesNeeded;
+  assert.equal(after, before + 10);
 });

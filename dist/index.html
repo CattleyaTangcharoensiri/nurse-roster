@@ -1262,6 +1262,7 @@ function analyze(roster, rules, opts = {}) {
     daysManyOff,
     violations,
     perPerson,
+    advice: advise(roster, rules),
     summary: {
       errors: violations.filter((v) => v.severity === 'error').length,
       warnings: violations.filter((v) => v.severity === 'warn').length,
@@ -1269,6 +1270,92 @@ function analyze(roster, rules, opts = {}) {
       over: gaps.filter((g) => g.status === 'over').length,
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// advise — คำแนะนำเชิงตัวเลข "สำหรับเดือนนี้โดยเฉพาะ"
+//
+// ตอบคำถาม: ด้วยจำนวนวันของเดือนนี้ + เป้ารายวัน + โควตาหยุด ที่ตั้งไว้
+//   จะให้ "ทุกคนหยุดตรงโควตา" ได้ไหม ต้องเวรคู่กี่ครั้ง ถ้าไม่อยากอัดเวรคู่
+//   ควรปรับจำนวนคน / โควตา / เป้า เป็นเท่าไร
+//
+// สูตรหลัก:  เวรคู่ที่ต้องใช้ = (กะที่ต้องการทั้งเดือน) − (วันทำงานรวมถ้าทุกคนหยุด Q)
+//            วันทำงานรวม = N·(D − Q) − (วันลา/อบรมที่ไม่นับเข้าโควตา)
+// ---------------------------------------------------------------------------
+function advise(roster, rules) {
+  const D = roster.days;
+  const N = roster.staff.length;
+  const Q = rules.offQuota;
+  const cap = Math.max(0, rules.maxDoublesPerPerson);
+  const S = totalSlotsNeeded(roster, rules); // กะที่ต้องการทั้งเดือน (คิด override ครบ)
+
+  let leave = 0;
+  let training = 0;
+  for (const row of roster.grid) {
+    for (const c of row) {
+      if (c.off === OFF.LEAVE) leave += 1;
+      else if (c.off === OFF.TRAINING) training += 1;
+    }
+  }
+  const away = training + (rules.countLeaveInQuota ? 0 : leave);
+
+  const doublesAt = (n) => S - (n * (D - Q) - away);
+  const doublesNeeded = doublesAt(N);
+  const doubleCapacity = N * cap;
+
+  // ช่วงจำนวนคนที่ "ทุกคนหยุด Q พอดี" เป็นไปได้
+  const nMax = D - Q > 0 ? Math.floor((S + away) / (D - Q)) : 0;          // เกินนี้ = คนล้น
+  const nMin = D - Q + cap > 0 ? Math.ceil((S + away) / (D - Q + cap)) : nMax;
+
+  const base = {
+    days: D, staff: N, quota: Q, shiftsNeeded: S,
+    doublesNeeded, doubleCapacity,
+    avgPerPerson: N ? Number((doublesNeeded / N).toFixed(2)) : 0,
+    feasibleStaff: { min: nMin, max: nMax },
+  };
+
+  if (N === 0) return { ...base, status: 'empty', lines: ['ยังไม่มีพยาบาล'], table: [] };
+
+  const table = [];
+  for (let n = Math.max(1, nMin); n <= Math.max(nMin, nMax); n++) {
+    table.push({ staff: n, doubles: doublesAt(n) });
+  }
+
+  const lines = [];
+  let status;
+
+  if (D - Q <= 0) {
+    status = 'under';
+    lines.push(`โควตาหยุด ${Q} ≥ จำนวนวัน (${D}) — ตั้งใหม่ให้ต่ำกว่า ${D}`);
+    return { ...base, status, lines, table: [] };
+  }
+
+  if (doublesNeeded < 0) {
+    status = 'over';
+    const qFit = Math.round((N * D - S - leave - training) / N);
+    lines.push(`${N} คน มากไปสำหรับ ${D} วัน + หยุด ${Q} — งานเกินมา ${-doublesNeeded} กะ บางคนต้องหยุดเกิน ${Q}`);
+    lines.push(`ลดเหลือ ${nMax} คน → ทุกคนหยุด ${Q} พอดี (เวรคู่ ${doublesAt(nMax)} ครั้ง)`);
+    lines.push(`หรือคง ${N} คน แล้วตั้งโควตาหยุด = ${qFit}`);
+  } else if (doublesNeeded > doubleCapacity) {
+    status = 'under';
+    lines.push(`${N} คน น้อยไป — ต้องเวรคู่ ${doublesNeeded} ครั้ง แต่เพดานรวมรับได้แค่ ${doubleCapacity}`);
+    if (nMax >= nMin) lines.push(`เพิ่มเป็น ${nMin}–${nMax} คน (${nMax} คน → เวรคู่ ${doublesAt(nMax)} ครั้ง)`);
+    lines.push(`หรือลดเป้ารายวัน / ลดโควตาหยุด / เพิ่มเพดานเวรคู่ต่อคน`);
+  } else {
+    const avg = doublesNeeded / N;
+    if (avg <= 0.75) {
+      status = 'ok';
+      lines.push(`${D} วัน · ${N} คน · หยุด ${Q} → จัดได้สบาย` + (doublesNeeded ? ` (เวรคู่ ${doublesNeeded} ครั้ง)` : ' (ไม่ต้องเวรคู่)'));
+    } else {
+      status = 'tight';
+      const how = avg > 2 ? 'แน่นมาก อ่านยาก' : 'ตารางจะแน่น';
+      lines.push(`จัดได้ แต่ต้องเวรคู่ ${doublesNeeded} ครั้ง (เฉลี่ย ${avg.toFixed(1)}/คน) — ${how}`);
+      if (nMax > N) lines.push(`เพิ่มเป็น ${nMax} คน → เวรคู่เหลือ ${doublesAt(nMax)} ครั้ง`);
+      else lines.push(`รับได้ก็ปล่อยไว้ตามนี้`);
+    }
+  }
+
+  return { ...base, status, lines, table };
 }
 
 
@@ -3060,6 +3147,19 @@ function rosterToXlsx(roster, rules, report) {
     p.appendChild(head);
 
     const body = el('div', 'rp-body');
+
+    // การ์ด 0 — คำแนะนำสำหรับเดือนนี้
+    const adv = rep.advice;
+    if (adv && adv.lines && adv.lines.length) {
+      const c0 = el('div', 'rp-card');
+      c0.innerHTML = `<h4>คำแนะนำ — ${adv.days} วัน · ${adv.staff} คน · หยุด ${adv.quota} · ต้องการ ${adv.shiftsNeeded} กะ</h4>`;
+      const cls = { over: 'warn', under: 'error', tight: 'warn' }[adv.status] || '';
+      adv.lines.forEach((line, i) => c0.appendChild(el('div', 'rp-line ' + (i === 0 ? cls : ''), (i === 0 ? '' : '• ') + line)));
+      if (adv.table && adv.table.length > 1) {
+        c0.appendChild(el('div', 'rp-line', 'คน → เวรคู่:  ' + adv.table.map((x) => `${x.staff}→${x.doubles}`).join('   ')));
+      }
+      body.appendChild(c0);
+    }
 
     // การ์ด 1 — ความเป็นไปได้
     const c1 = el('div', 'rp-card');
