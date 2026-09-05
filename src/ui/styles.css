@@ -26,7 +26,7 @@ body {
 }
 button { font-family: inherit; }
 
-.app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
 
 /* ---------- TOOLBAR ---------- */
 .toolbar {
@@ -233,6 +233,52 @@ tfoot .col-name { text-align: left; }
   font-size: 12px; z-index: 400;
 }
 .toast[hidden] { display: none; }
+
+/* ---------- TOUCH / RESPONSIVE ---------- */
+td.cell, tbody td.col-name {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+td.cell { touch-action: manipulation; }
+.viewport { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.menu { max-height: 80vh; overflow-y: auto; }
+
+/* อุปกรณ์สัมผัส: ไม่มี hover — ปุ่มจัดการแถวต้องโชว์ตลอด, เมนูแตะง่ายขึ้น */
+@media (hover: none) {
+  .rowdel, .rowcfg { opacity: 1; }
+  .menu button { padding: 10px 12px; }
+  .legend .hint { margin-left: 0; }
+}
+
+/* จอเล็ก (มือถือ) */
+@media (max-width: 820px) {
+  :root { --col-name: 128px; --col-sum: 116px; }
+  body { font-size: 13px; }
+
+  .toolbar { gap: 6px; padding: 8px 10px; }
+  .toolbar .title { width: 100%; font-size: 14px; margin-bottom: 2px; }
+  .toolbar .spacer { display: none; }
+  .monthpick, .rulepick { margin-left: 0; }
+  .rulepick { width: 100%; flex-wrap: wrap; }
+  .btn { padding: 8px 10px; }
+
+  /* ปุ่ม/ช่องกรอก ≥16px กัน iOS ซูมตอนโฟกัส */
+  .monthpick select, .monthpick input,
+  .rulepick input[type="number"] { font-size: 16px; }
+  .monthpick input { width: 76px; }
+  .rulepick input[type="number"] { width: 52px; }
+
+  .sumgrid { grid-template-columns: 26px 18px 18px 18px 18px 18px; }
+  .sumgrid span { font-size: 10px; }
+  .sumgrid.head span { font-size: 9px; }
+  .nm-1, .nm-2 { padding-right: 44px; }
+  .nm-1 { font-size: 12px; }
+  .rowcfg { right: 20px; }
+
+  .report { height: 72%; }
+  .report .rp-body { grid-template-columns: 1fr; }
+}
 
 /* ---------- PRINT ---------- */
 @media print {

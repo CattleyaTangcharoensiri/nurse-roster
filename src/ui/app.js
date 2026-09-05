@@ -40,6 +40,10 @@
   const undoStack = [];
   let toastTimer = 0;
 
+  // อุปกรณ์สัมผัส (มือถือ/แท็บเล็ต) — ใช้ "แตะค้าง" แทนคลิกขวา
+  const IS_TOUCH = matchMedia('(hover: none)').matches;
+  let lastLongPress = 0;
+
   // ---------------------------------------------------------------------------
   // เดือน / ปี (พ.ศ.) — คำนวณจำนวนวัน + วันเริ่มต้นจากปฏิทินจริง
   // ---------------------------------------------------------------------------
@@ -363,7 +367,9 @@
       s.appendChild(el('span', null, label));
       box.appendChild(s);
     }
-    box.appendChild(el('span', 'hint', 'คลิกช่องเพื่อวนค่า · Shift+คลิก ล็อก · คลิกขวา เลือกค่า · คลิกขวาที่ชื่อ = กำหนดกะที่ทำได้ · Ctrl+Z ย้อน'));
+    box.appendChild(el('span', 'hint', IS_TOUCH
+      ? 'แตะช่องเพื่อวนค่า · แตะค้าง = เลือกค่า/ล็อก · แตะค้างที่ชื่อ = กำหนดกะที่ทำได้ · แตะชื่อ = แก้ชื่อ'
+      : 'คลิกช่องเพื่อวนค่า · Shift+คลิก ล็อก · คลิกขวา เลือกค่า · คลิกขวาที่ชื่อ = กำหนดกะที่ทำได้ · Ctrl+Z ย้อน'));
   }
 
   function renderHead(r) {
@@ -418,11 +424,13 @@
       const name = el('td', 'col-name');
       name.dataset.si = si;
       const nm1 = el('span', 'nm-1', staff.name);
-      nm1.title = 'ดับเบิลคลิกเพื่อแก้ชื่อ · คลิกขวากำหนดกะที่ทำได้';
-      nm1.ondblclick = () => {
+      nm1.title = 'ดับเบิลคลิก/แตะเพื่อแก้ชื่อ · คลิกขวา/แตะค้าง = กะที่ทำได้';
+      const doRename = () => {
         const v = window.prompt('ชื่อพยาบาล', staff.name);
         if (v != null) { pushUndo(); staff.name = v.trim() || staff.name; render(); }
       };
+      nm1.ondblclick = doRename;
+      if (IS_TOUCH) nm1.onclick = () => { if (Date.now() - lastLongPress < 700) return; doRename(); };
       name.appendChild(nm1);
       const bits = [staff.role, staff.team].filter(Boolean);
       if (staff.allow && staff.allow.length) bits.push('กะ: ' + staff.allow.join(' '));
@@ -670,10 +678,12 @@
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]');
     if (b) { onAction(b.dataset.act); return; }
+    if (Date.now() - lastLongPress < 700) return; // กันคลิกลวงหลังแตะค้าง
     if (!e.target.closest('#menu')) closeMenu();
   });
 
   $('#grid').addEventListener('click', (e) => {
+    if (Date.now() - lastLongPress < 700) return; // แตะค้างเพิ่งเปิดเมนู — ไม่วนค่า
     const td = e.target.closest('td.cell');
     if (!td) return;
     const si = +td.dataset.si, di = +td.dataset.di;
@@ -682,6 +692,7 @@
   });
 
   $('#grid').addEventListener('contextmenu', (e) => {
+    if (Date.now() - lastLongPress < 700) { e.preventDefault(); return; }
     const nameTd = e.target.closest('tbody td.col-name');
     if (nameTd) {
       e.preventDefault();
@@ -693,6 +704,33 @@
     e.preventDefault();
     openMenu(e.clientX, e.clientY, +td.dataset.si, +td.dataset.di);
   });
+
+  // แตะค้าง (touch) = เปิดเมนูเลือกค่า เหมือนคลิกขวาบนเดสก์ท็อป
+  let lpTimer = 0;
+  let lpXY = null;
+  $('#grid').addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) { clearTimeout(lpTimer); return; }
+    const cellTd = e.target.closest('td.cell');
+    const nameTd = e.target.closest('tbody td.col-name');
+    if (!cellTd && !nameTd) return;
+    const t = e.touches[0];
+    lpXY = { x: t.clientX, y: t.clientY };
+    clearTimeout(lpTimer);
+    lpTimer = setTimeout(() => {
+      lastLongPress = Date.now();
+      if (navigator.vibrate) { try { navigator.vibrate(12); } catch (_) { /* ignore */ } }
+      if (nameTd) openAllowMenu(lpXY.x, lpXY.y, +nameTd.dataset.si);
+      else openMenu(lpXY.x, lpXY.y, +cellTd.dataset.si, +cellTd.dataset.di);
+    }, 420);
+  }, { passive: true });
+  $('#grid').addEventListener('touchmove', (e) => {
+    if (!lpXY || !e.touches.length) return;
+    const t = e.touches[0];
+    if (Math.abs(t.clientX - lpXY.x) > 12 || Math.abs(t.clientY - lpXY.y) > 12) clearTimeout(lpTimer);
+  }, { passive: true });
+  const endLongPress = () => clearTimeout(lpTimer);
+  $('#grid').addEventListener('touchend', endLongPress, { passive: true });
+  $('#grid').addEventListener('touchcancel', endLongPress, { passive: true });
 
   $('#file').addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -722,6 +760,12 @@
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target && e.target.tagName);
     if (!typing && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
     if (e.key === 'Escape') closeMenu();
+  });
+
+  // กันปิด/รีเฟรชพลาดตอนมีข้อมูล (ไม่มีบันทึกอัตโนมัติ — สำคัญบนมือถือ)
+  window.addEventListener('beforeunload', (e) => {
+    const dirty = S.roster && S.roster.grid.some((row) => row.some((c) => c.shifts.length || c.off));
+    if (dirty) { e.preventDefault(); e.returnValue = ''; }
   });
 
   // ---------------------------------------------------------------------------
