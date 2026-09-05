@@ -127,6 +127,18 @@ test('solver: ต.ค. 2569 (16 คน, ช5/บ4/ด3, หยุด 8 เป๊
 
   assert.equal(hardViolations(rep).length, 0, 'ไม่ผิดกฎห้าม');
   assert.equal(rep.summary.errors, 0, 'ไม่มี error');
+
+  // เวรคู่ต้องกระจายตามแกนเวลา ไม่กระจุกต้นเดือน
+  const dblDays = [];
+  res.roster.grid.forEach((row) => row.forEach((c, d) => { if (c.shifts.length >= 2) dblDays.push(d); }));
+  dblDays.sort((a, b) => a - b);
+  const D = res.roster.days;
+  const thirds = [0, 0, 0];
+  dblDays.forEach((d) => { thirds[Math.min(2, Math.floor(d / D * 3))] += 1; });
+  assert.ok(Math.max(...thirds) - Math.min(...thirds) <= 1, `เวรคู่ต้องกระจายทั่วเดือน (ต้น/กลาง/ปลาย = ${thirds})`);
+  assert.ok(dblDays[dblDays.length - 1] - dblDays[0] >= D * 0.5, `เวรคู่ต้องคลุมช่วงเดือนกว้าง (วัน ${dblDays.map((d) => d + 1)})`);
+  // แต่ละคนโดนเวรคู่ไม่กระจุก
+  for (const p of rep.perPerson) assert.ok(p.doubles <= 2, `${p.name} โดนเวรคู่ ${p.doubles} ครั้ง — กระจุกเกินไป`);
 });
 
 test('solver: โหมด max — ไม่ดันคนขึ้น 2 กะ/วัน เพื่อไปให้ถึงโควตาหยุด', () => {

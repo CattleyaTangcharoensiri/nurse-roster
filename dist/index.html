@@ -1752,76 +1752,123 @@ function balanceRest(R, rules) {
 // 5) ปิดช่องว่างวันหยุด: คนที่ยังหยุดไม่ถึงโควตา ยกกะเดียวของเขาไปเป็น
 //    กะที่ 2 ของเพื่อนร่วมกะวันนั้น (coverage คงเดิม) แล้วช่องนั้นกลายเป็น O
 //    ใช้เฉพาะโหมด exact — โหมด max โควตาเป็นเพดาน หยุดไม่ถึงไม่ผิด
+//
+//    การเลือก "วัน" ของเวรคู่: กระจายให้สม่ำเสมอตลอดเดือน — วางจุดเป้าหมาย
+//    (slots) ห่างเท่า ๆ กันตามจำนวนเวรคู่ที่ต้องเติม แล้วแต่ละรอบเลือกท่าที่
+//    วันใกล้ slot ที่สุด บวกกับเลือก "คนรับ" (taker) ที่ยังโดนเวรคู่น้อย
+//    และห่างจากเวรคู่เดิมของตัวเอง เพื่อไม่ให้กระจุกทั้งแกนเวลาและรายคน
 // ---------------------------------------------------------------------------
 function restViaDoubles(R, rules) {
   if (rules.offQuotaMode !== 'exact') return;
   const D = R.days;
   const N = R.staff.length;
 
-  const lockedRestOf = (i) => {
-    let n = 0;
-    for (const c of R.grid[i]) if (c.locked && (c.off === OFF.LOCKED || c.off === OFF.FILLED)) n += 1;
-    return n;
-  };
-  const restCount = (i) => {
-    let n = 0;
-    for (const c of R.grid[i]) if (c.off === OFF.LOCKED || c.off === OFF.FILLED) n += 1;
-    return n;
-  };
+  const isRestCell = (c) => c.off === OFF.LOCKED || c.off === OFF.FILLED;
+  const lockedRestOf = (i) => R.grid[i].reduce((n, c) => n + (c.locked && isRestCell(c) ? 1 : 0), 0);
+  const restCount = (i) => R.grid[i].reduce((n, c) => n + (isRestCell(c) ? 1 : 0), 0);
   const targetOf = (i) => Math.max(lockedRestOf(i), rules.offQuota);
 
   const neighborsRest = (i, d) => {
-    const a = d > 0 && (R.grid[i][d - 1].off === OFF.LOCKED || R.grid[i][d - 1].off === OFF.FILLED);
-    const b = d < D - 1 && (R.grid[i][d + 1].off === OFF.LOCKED || R.grid[i][d + 1].off === OFF.FILLED);
+    const a = d > 0 && isRestCell(R.grid[i][d - 1]);
+    const b = d < D - 1 && isRestCell(R.grid[i][d + 1]);
     return (a ? 1 : 0) + (b ? 1 : 0);
   };
 
+  // ใครยังหยุดไม่ถึงโควตา + รวมต้องเติมกี่เวรคู่
+  const needs = [];
+  let K = 0;
   for (let i = 0; i < N; i++) {
-    let need = targetOf(i) - restCount(i);
-    if (need <= 0) continue;
+    const need = targetOf(i) - restCount(i);
+    if (need > 0) { needs.push({ i, need }); K += need; }
+  }
+  if (K === 0) return;
 
-    // เรียงวัน: เลือกวันที่ทำให้ O ไม่ติดกันก่อน
-    const cand = [];
-    for (let d = 0; d < D; d++) {
-      const c = R.grid[i][d];
-      if (c.locked || c.shifts.length !== 1) continue;
-      cand.push(d);
+  // สถานะเวรคู่ปัจจุบัน (นับของเดิมจาก constructive/polish ด้วย)
+  const takerDbl = Array.from({ length: N }, () => 0);
+  const takerDblDays = Array.from({ length: N }, () => []);
+  for (let q = 0; q < N; q++) {
+    R.grid[q].forEach((c, d) => {
+      if (c.shifts.length >= 2) { takerDbl[q] += 1; takerDblDays[q].push(d); }
+    });
+  }
+
+  // จุดเป้าหมายกระจายทั้งเดือน (index วัน 0-based)
+  const slots = [];
+  for (let k = 0; k < K; k++) slots.push(Math.round((k + 0.5) / K * D - 0.5));
+
+  // ตรวจว่า q รับกะ s เป็นกะที่ 2 ในวัน d ได้ไหม (dry-run)
+  const takerOK = (q, d, s) => {
+    const cq = R.grid[q][d];
+    if (q < 0 || cq.locked || cq.shifts.length !== 1 || cq.shifts.includes(s)) return false;
+    const svq = snap(cq);
+    setShifts(cq, [cq.shifts[0], s]); cq.locked = false;
+    const ok = cellHardOK(R, rules, q, d)
+      && (d <= 0 || cellHardOK(R, rules, q, d - 1))
+      && (d >= D - 1 || cellHardOK(R, rules, q, d + 1));
+    restore(cq, svq);
+    return ok;
+  };
+
+  // คนรับที่ดีที่สุดในวัน d สำหรับกะ s: เวรคู่น้อย + ห่างจากเวรคู่เดิมของตัวเอง
+  const bestTaker = (i, d, s) => {
+    let best = -1;
+    let bestScore = Infinity;
+    for (let q = 0; q < N; q++) {
+      if (q === i || !takerOK(q, d, s)) continue;
+      const near = takerDblDays[q].reduce((m, dd) => Math.min(m, Math.abs(dd - d)), Infinity);
+      const score = takerDbl[q] * 10 + (near < 7 ? 7 - near : 0);
+      if (score < bestScore) { bestScore = score; best = q; }
     }
-    cand.sort((x, y) => neighborsRest(i, x) - neighborsRest(i, y));
+    return best;
+  };
 
-    for (const d of cand) {
-      if (need <= 0) break;
-      const cell = R.grid[i][d];
-      if (cell.locked || cell.shifts.length !== 1) continue;
-      const s = cell.shifts[0];
+  const applyMove = (i, d, q) => {
+    const ci = R.grid[i][d];
+    const cq = R.grid[q][d];
+    const svi = snap(ci);
+    const svq = snap(cq);
+    setShifts(cq, [cq.shifts[0], ci.shifts[0]]); cq.locked = false;
+    setOff(ci, OFF.FILLED); ci.locked = false;
+    const ok = cellHardOK(R, rules, q, d)
+      && (d <= 0 || cellHardOK(R, rules, q, d - 1))
+      && (d >= D - 1 || cellHardOK(R, rules, q, d + 1))
+      && (d <= 0 || cellHardOK(R, rules, i, d - 1))
+      && (d >= D - 1 || cellHardOK(R, rules, i, d + 1));
+    if (ok) { takerDbl[q] += 1; takerDblDays[q].push(d); return true; }
+    restore(ci, svi); restore(cq, svq);
+    return false;
+  };
 
-      let taker = -1;
-      for (let q = 0; q < N; q++) {
-        if (q === i) continue;
-        const qc = R.grid[q][d];
-        if (qc.locked || qc.shifts.length !== 1 || qc.shifts.includes(s)) continue;
-        const svq = snap(qc);
-        setShifts(qc, [qc.shifts[0], s]); qc.locked = false;
-        const okq = cellHardOK(R, rules, q, d)
-          && (d <= 0 || cellHardOK(R, rules, q, d - 1))
-          && (d >= D - 1 || cellHardOK(R, rules, q, d + 1));
-        restore(qc, svq);
-        if (okq) { taker = q; break; }
+  // เดินทีละ slot — แต่ละรอบเลือกท่าที่วันใกล้ slot ที่สุด (ทุกคนที่ยังขาด)
+  for (const slot of slots) {
+    let pick = null;
+    let pickScore = Infinity;
+    for (const entry of needs) {
+      if (entry.need <= 0) continue;
+      const i = entry.i;
+      for (let d = 0; d < D; d++) {
+        const ci = R.grid[i][d];
+        if (ci.locked || ci.shifts.length !== 1) continue;
+        const q = bestTaker(i, d, ci.shifts[0]);
+        if (q < 0) continue;
+        const score = Math.abs(d - slot) * 4 + neighborsRest(i, d) * 2 + takerDbl[q] * 3;
+        if (score < pickScore) { pickScore = score; pick = { entry, d, q }; }
       }
-      if (taker < 0) continue;
+    }
+    if (pick && applyMove(pick.entry.i, pick.d, pick.q)) pick.entry.need -= 1;
+  }
 
-      const qc = R.grid[taker][d];
-      const svq = snap(qc);
-      const svi = snap(cell);
-      setShifts(qc, [qc.shifts[0], s]); qc.locked = false;
-      setOff(cell, OFF.FILLED); cell.locked = false;
-      const ok = cellHardOK(R, rules, taker, d)
-        && (d <= 0 || cellHardOK(R, rules, taker, d - 1))
-        && (d >= D - 1 || cellHardOK(R, rules, taker, d + 1))
-        && (d <= 0 || cellHardOK(R, rules, i, d - 1))
-        && (d >= D - 1 || cellHardOK(R, rules, i, d + 1));
-      if (ok) need -= 1;
-      else { restore(qc, svq); restore(cell, svi); }
+  // เผื่อบาง slot หาท่าไม่ได้ — ไล่เก็บคนที่ยังขาดแบบตรงไปตรงมา
+  for (const entry of needs) {
+    while (entry.need > 0) {
+      let moved = false;
+      for (let d = 0; d < D && !moved; d++) {
+        const ci = R.grid[entry.i][d];
+        if (ci.locked || ci.shifts.length !== 1) continue;
+        const q = bestTaker(entry.i, d, ci.shifts[0]);
+        if (q >= 0 && applyMove(entry.i, d, q)) { entry.need -= 1; moved = true; }
+      }
+      if (!moved) break;
     }
   }
 }
