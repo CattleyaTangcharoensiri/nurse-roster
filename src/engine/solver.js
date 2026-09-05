@@ -664,6 +664,12 @@ export function solve(roster, rules, opts = {}) {
   const R = cloneRoster(roster);
   if (R.staff.length === 0) return { roster: R, cost: cost(R, rules), filled: 0, changed: 0 };
 
+  // จัดใหม่ทั้งหมดจากศูนย์ — เก็บไว้เฉพาะช่องที่ล็อก / ลา (V) / อบรม (T)
+  // (กันผลเพี้ยนเวลากด "จัดตารางอัตโนมัติ" ซ้ำ หรือจัดหลังเพิ่มคน/แก้กติกา)
+  for (const row of R.grid) {
+    for (const c of row) if (!isFixed(c)) clearCell(c);
+  }
+
   constructive(R, rules, rnd);
   const polished = polish(R, rules, rnd, iterations);
   const out = polished.roster;

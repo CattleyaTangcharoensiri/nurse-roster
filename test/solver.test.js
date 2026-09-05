@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { parseRoster } from '../src/engine/io.js';
-import { makeRoster, mergeRules, getCell, setCellShifts, setCellOff, OFF } from '../src/engine/model.js';
+import { makeRoster, mergeRules, addStaff, getCell, setCellShifts, setCellOff, OFF } from '../src/engine/model.js';
 import { analyze } from '../src/engine/analyze.js';
 import { solve } from '../src/engine/solver.js';
 
@@ -171,6 +171,23 @@ test('solver: คนไม่พอ → coverage มาก่อนโควต�
   assert.ok(Math.max(...rests) <= 4, `ห้ามแจกวันหยุดเต็มโควตาแล้วทิ้ง coverage (rests=${rests})`);
   assert.ok(rep.feasibility.assignedSlots >= rep.feasibility.slotsNeeded - 30,
     `ต้องเติมกะให้ได้เกือบเต็ม (${rep.feasibility.assignedSlots}/${rep.feasibility.slotsNeeded})`);
+  assert.equal(hardViolations(rep).length, 0);
+});
+
+test('solver: จัดซ้ำ / จัดหลังเพิ่มคน → เริ่มจากศูนย์ ไม่เพี้ยน', () => {
+  const { roster, rules } = parseRoster(OCT2569);
+  const tok = (r) => r.grid.map((row) => row.map((c) => c.shifts.join('+') || c.off || '.').join(',')).join('|');
+
+  const once = solve(roster, rules, { seed: 1 });
+  const twice = solve(once.roster, rules, { seed: 1 });
+  assert.equal(tok(once.roster), tok(twice.roster), 'จัดซ้ำบนผลเดิมต้องได้ตารางเดิม');
+
+  // เพิ่ม 2 คนเข้าไปในตารางที่จัดแล้ว → จัดใหม่ต้องสะอาด ไม่มีใครหยุดทะลุ
+  addStaff(twice.roster, { name: 'เพิ่ม 1' });
+  addStaff(twice.roster, { name: 'เพิ่ม 2' });
+  const after = solve(twice.roster, rules, { seed: 1 });
+  const rep = analyze(after.roster, rules);
+  for (const p of rep.perPerson) assert.ok(p.rest <= 12, `${p.name} หยุด ${p.rest} วัน — เพี้ยน`);
   assert.equal(hardViolations(rep).length, 0);
 });
 
