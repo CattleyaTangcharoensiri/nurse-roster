@@ -104,7 +104,7 @@ export function cloneCell(cell) {
 // ---------------------------------------------------------------------------
 
 /** token กะที่ตั้งเป็น "เงื่อนไขรายบุคคล" ได้ */
-export const ALLOW_TOKENS = ['ช', 'บ', 'ด', 'ช+บ', 'บ+ด', 'ช+ด'];
+export const ALLOW_TOKENS = ['ช', 'บ', 'ด', 'ช+บ', 'บ+ด'];
 
 export function makeStaff({ id, name, role = '', team = '', teamColor = '', allow = [] }) {
   return { id, name, role, team, teamColor, allow: [...allow] };
@@ -230,9 +230,9 @@ export function defaultRules() {
     offQuotaMode: 'exact',          // 'exact' | 'max'
     countLeaveInQuota: false,
     keepExcessLockedOff: true,
-    // ขึ้น 2 กะ/วัน ได้ทุกแบบเมื่อจำเป็น — ไม่ล็อกว่าต้องเป็นคู่ไหน
+    // ขึ้น 2 กะ/วัน: ช+บ กับ บ+ด เท่านั้น — ช+ด ห้ามเด็ดขาด (เช้าแล้วเว้นบ่ายไปขึ้นดึก)
     // (ตัดออกจากลิสต์ = ห้ามคู่นั้น; ลิสต์ว่าง = ห้ามขึ้น 2 กะ/วัน ทั้งหมด)
-    allowedDoubles: ['ช+บ', 'บ+ด', 'ช+ด'],
+    allowedDoubles: ['ช+บ', 'บ+ด'],
     maxNightToMorning: 0,            // ด → เช้าวันรุ่งขึ้น: ห้ามเด็ดขาด (0 = ผิดกฎเสมอ)
     maxConsecutiveNights: 2,
     maxConsecutiveWork: 5,

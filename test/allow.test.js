@@ -61,6 +61,6 @@ test('solver: ไม่ลงกะที่ผิดเงื่อนไขร
   assert.equal(rep.violations.filter((v) => v.type === 'shiftNotAllowed').length, 0);
 });
 
-test('ALLOW_TOKENS: 6 ตัวเลือก', () => {
-  assert.deepEqual(ALLOW_TOKENS, ['ช', 'บ', 'ด', 'ช+บ', 'บ+ด', 'ช+ด']);
+test('ALLOW_TOKENS: 5 ตัวเลือก (ช+ด ตัดออก)', () => {
+  assert.deepEqual(ALLOW_TOKENS, ['ช', 'บ', 'ด', 'ช+บ', 'บ+ด']);
 });

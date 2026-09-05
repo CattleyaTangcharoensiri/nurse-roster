@@ -423,7 +423,12 @@ function fillRest(R, rules) {
       ? Math.max(lockedRest, rules.offQuota)
       : lockedRest;
     let need = target - counted;
-    for (const d of empties) {
+
+    // วาง O แบบกระจาย — เลือกวันที่เพื่อนบ้านยังไม่หยุดก่อน (เลี่ยง O ติดกัน)
+    const isRestNow = (d) => d >= 0 && d < D && (row[d].off === OFF.LOCKED || row[d].off === OFF.FILLED);
+    const nbrRest = (d) => (isRestNow(d - 1) ? 1 : 0) + (isRestNow(d + 1) ? 1 : 0);
+    const order = [...empties].sort((a, b) => nbrRest(a) - nbrRest(b) || a - b);
+    for (const d of order) {
       if (need <= 0) break;
       row[d].off = OFF.FILLED;
       need -= 1;
@@ -650,6 +655,74 @@ function restViaDoubles(R, rules) {
 }
 
 // ---------------------------------------------------------------------------
+// 6) แตก O ที่ติดกันเกิน maxConsecutiveOff — สลับ 4 ช่องระหว่างคนสองคนในสองวัน
+//    (coverage + จำนวนวันหยุดของทั้งคู่คงเดิม) เพื่อไม่ให้ใครหยุดยาวติดกัน
+// ---------------------------------------------------------------------------
+function spreadLongRest(R, rules) {
+  const D = R.days;
+  const N = R.staff.length;
+  const maxO = rules.maxConsecutiveOff;
+  const isR = (c) => c.off === OFF.LOCKED || c.off === OFF.FILLED;
+  const isMovableO = (c) => c.off === OFF.FILLED && !c.locked;
+  const noLongRun = (i) => {
+    let run = 0;
+    for (let d = 0; d < D; d++) {
+      if (isR(R.grid[i][d])) { run += 1; if (run > maxO) return false; } else run = 0;
+    }
+    return true;
+  };
+
+  for (let a = 0; a < N; a++) {
+    let guard = 0;
+    while (!noLongRun(a) && guard++ < D) {
+      // หา O (ระบบเติม) ของ a ที่อยู่กลางแถบยาว
+      let fixed = false;
+      for (let d = 0; d < D && !fixed; d++) {
+        const cad = R.grid[a][d];
+        if (!isMovableO(cad)) continue;
+        const runL = (() => {
+          let n = 1;
+          for (let k = d - 1; k >= 0 && isR(R.grid[a][k]); k--) n += 1;
+          for (let k = d + 1; k < D && isR(R.grid[a][k]); k++) n += 1;
+          return n;
+        })();
+        if (runL <= maxO) continue;
+
+        for (let b = 0; b < N && !fixed; b++) {
+          if (b === a) continue;
+          const cbd = R.grid[b][d];
+          if (cbd.locked || cbd.shifts.length !== 1) continue;
+          const s = cbd.shifts[0];
+          for (let x = 0; x < D && !fixed; x++) {
+            if (x === d) continue;
+            const cax = R.grid[a][x];
+            const cbx = R.grid[b][x];
+            if (!isMovableO(cbx) || cax.locked || cax.shifts.length !== 1) continue;
+            const sx = cax.shifts[0];
+            const sv = [snap(cad), snap(cbd), snap(cax), snap(cbx)];
+            setShifts(cad, [s]); cad.locked = false;
+            setOff(cbd, OFF.FILLED); cbd.locked = false;
+            setOff(cax, OFF.FILLED); cax.locked = false;
+            setShifts(cbx, [sx]); cbx.locked = false;
+            const cells = [[a, d], [b, d], [a, x], [b, x]];
+            const ok = cells.every(([ii, dd]) => cellHardOK(R, rules, ii, dd)
+              && (dd <= 0 || cellHardOK(R, rules, ii, dd - 1))
+              && (dd >= D - 1 || cellHardOK(R, rules, ii, dd + 1)))
+              && noLongRun(a) && noLongRun(b);
+            if (ok) { fixed = true; }
+            else {
+              restore(cad, sv[0]); restore(cbd, sv[1]);
+              restore(cax, sv[2]); restore(cbx, sv[3]);
+            }
+          }
+        }
+      }
+      if (!fixed) break;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // solve
 // ---------------------------------------------------------------------------
 /**
@@ -677,6 +750,7 @@ export function solve(roster, rules, opts = {}) {
   balanceRest(out, rules);
   restViaDoubles(out, rules);
   balanceRest(out, rules);
+  spreadLongRest(out, rules);
 
   // นับช่องที่เปลี่ยนจากต้นฉบับ
   let filled = 0;

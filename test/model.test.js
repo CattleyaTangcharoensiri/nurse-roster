@@ -136,6 +136,12 @@ test('double pattern: parse / format / allowed', () => {
   assert.ok(isDoubleAllowed(rules, ['บ', 'ช']));
   assert.ok(!isDoubleAllowed(rules, ['บ', 'ด']));
   assert.ok(isDoubleAllowed(rules, ['ช'])); // กะเดี่ยว ผ่านเสมอ
+
+  // ค่าเริ่มต้น: ช+บ / บ+ด เท่านั้น — ช+ด ห้าม
+  const d = mergeRules({});
+  assert.deepEqual(d.allowedDoubles, ['ช+บ', 'บ+ด']);
+  assert.ok(d.allowedDoubles.every((x) => x !== 'ช+ด'));
+  assert.ok(!isDoubleAllowed(d, ['ช', 'ด']));
 });
 
 test('bandForDay / minStaffForDay: override ตามวันในสัปดาห์ + ตามเลขวันที่ (เลขวันที่ชนะ)', () => {
