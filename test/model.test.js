@@ -115,8 +115,11 @@ test('cloneRoster: ลึกจริง', () => {
 test('rules: default + merge', () => {
   const d = defaultRules();
   assert.equal(d.offQuota, 6);
+  assert.equal(d.maxDoublesPerPerson, 4);
   assert.deepEqual(d.target['ช'], { min: 4, max: 4 });
   assert.equal(d.weights.coverage, 1000);
+
+  assert.equal(mergeRules({ maxDoublesPerPerson: 2 }).maxDoublesPerPerson, 2);
 
   const m = mergeRules({ offQuota: 8, target: { 'ด': 3 }, weights: { safety: 999 } });
   assert.equal(m.offQuota, 8);

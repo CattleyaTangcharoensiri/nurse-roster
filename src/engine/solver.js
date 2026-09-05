@@ -6,7 +6,9 @@
 // วิธี:
 //   1) constructive — ไล่เติมกะให้ถึงขั้นต่ำของแต่ละกะแต่ละวัน (ด ก่อน แล้ว ช, บ)
 //   2) polish — สุ่มปรับช่องที่ไม่ล็อก รับเฉพาะที่คะแนนดีขึ้น (hill-climb)
-//   3) เติมช่องว่างที่เหลือเป็น O
+//   3) fillRest / balanceRest — เติมช่องว่างที่เหลือเป็น O แล้วเกลี่ยให้ตรงโควตา
+//   4) restViaDoubles (เฉพาะโหมด exact) — คนที่หยุดไม่ถึงโควตา ยกกะเดียวไปเป็น
+//      กะที่ 2 ของเพื่อนร่วมกะ เพื่อปิดช่องว่างวันหยุดโดย coverage คงเดิม
 //
 // กติกาที่ "ห้ามละเมิดเด็ดขาด" ระหว่างจัด:
 //   - ไม่แตะช่องที่ล็อก / ลา (V) / อบรม (T)
@@ -477,6 +479,84 @@ function balanceRest(R, rules) {
 }
 
 // ---------------------------------------------------------------------------
+// 5) ปิดช่องว่างวันหยุด: คนที่ยังหยุดไม่ถึงโควตา ยกกะเดียวของเขาไปเป็น
+//    กะที่ 2 ของเพื่อนร่วมกะวันนั้น (coverage คงเดิม) แล้วช่องนั้นกลายเป็น O
+//    ใช้เฉพาะโหมด exact — โหมด max โควตาเป็นเพดาน หยุดไม่ถึงไม่ผิด
+// ---------------------------------------------------------------------------
+function restViaDoubles(R, rules) {
+  if (rules.offQuotaMode !== 'exact') return;
+  const D = R.days;
+  const N = R.staff.length;
+
+  const lockedRestOf = (i) => {
+    let n = 0;
+    for (const c of R.grid[i]) if (c.locked && (c.off === OFF.LOCKED || c.off === OFF.FILLED)) n += 1;
+    return n;
+  };
+  const restCount = (i) => {
+    let n = 0;
+    for (const c of R.grid[i]) if (c.off === OFF.LOCKED || c.off === OFF.FILLED) n += 1;
+    return n;
+  };
+  const targetOf = (i) => Math.max(lockedRestOf(i), rules.offQuota);
+
+  const neighborsRest = (i, d) => {
+    const a = d > 0 && (R.grid[i][d - 1].off === OFF.LOCKED || R.grid[i][d - 1].off === OFF.FILLED);
+    const b = d < D - 1 && (R.grid[i][d + 1].off === OFF.LOCKED || R.grid[i][d + 1].off === OFF.FILLED);
+    return (a ? 1 : 0) + (b ? 1 : 0);
+  };
+
+  for (let i = 0; i < N; i++) {
+    let need = targetOf(i) - restCount(i);
+    if (need <= 0) continue;
+
+    // เรียงวัน: เลือกวันที่ทำให้ O ไม่ติดกันก่อน
+    const cand = [];
+    for (let d = 0; d < D; d++) {
+      const c = R.grid[i][d];
+      if (c.locked || c.shifts.length !== 1) continue;
+      cand.push(d);
+    }
+    cand.sort((x, y) => neighborsRest(i, x) - neighborsRest(i, y));
+
+    for (const d of cand) {
+      if (need <= 0) break;
+      const cell = R.grid[i][d];
+      if (cell.locked || cell.shifts.length !== 1) continue;
+      const s = cell.shifts[0];
+
+      let taker = -1;
+      for (let q = 0; q < N; q++) {
+        if (q === i) continue;
+        const qc = R.grid[q][d];
+        if (qc.locked || qc.shifts.length !== 1 || qc.shifts.includes(s)) continue;
+        const svq = snap(qc);
+        setShifts(qc, [qc.shifts[0], s]); qc.locked = false;
+        const okq = cellHardOK(R, rules, q, d)
+          && (d <= 0 || cellHardOK(R, rules, q, d - 1))
+          && (d >= D - 1 || cellHardOK(R, rules, q, d + 1));
+        restore(qc, svq);
+        if (okq) { taker = q; break; }
+      }
+      if (taker < 0) continue;
+
+      const qc = R.grid[taker][d];
+      const svq = snap(qc);
+      const svi = snap(cell);
+      setShifts(qc, [qc.shifts[0], s]); qc.locked = false;
+      setOff(cell, OFF.FILLED); cell.locked = false;
+      const ok = cellHardOK(R, rules, taker, d)
+        && (d <= 0 || cellHardOK(R, rules, taker, d - 1))
+        && (d >= D - 1 || cellHardOK(R, rules, taker, d + 1))
+        && (d <= 0 || cellHardOK(R, rules, i, d - 1))
+        && (d >= D - 1 || cellHardOK(R, rules, i, d + 1));
+      if (ok) need -= 1;
+      else { restore(qc, svq); restore(cell, svi); }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // solve
 // ---------------------------------------------------------------------------
 /**
@@ -495,6 +575,8 @@ export function solve(roster, rules, opts = {}) {
   const polished = polish(R, rules, rnd, iterations);
   const out = polished.roster;
   fillRest(out, rules);
+  balanceRest(out, rules);
+  restViaDoubles(out, rules);
   balanceRest(out, rules);
 
   // นับช่องที่เปลี่ยนจากต้นฉบับ

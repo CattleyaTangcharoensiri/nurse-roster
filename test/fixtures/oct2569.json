@@ -1,0 +1,83 @@
+{
+  "days": 31,
+  "firstWeekday": "พฤหัสบดี",
+  "year": 2569,
+  "month": 10,
+  "rules": {
+    "target": {
+      "ช": 5,
+      "บ": 4,
+      "ด": 3
+    },
+    "offQuota": 8,
+    "offQuotaMode": "exact",
+    "countLeaveInQuota": false,
+    "maxDoublesPerPerson": 4
+  },
+  "staff": [
+    {
+      "name": "พยาบาล 1",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 2",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 3",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 4",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 5",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 6",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 7",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 8",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 9",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 10",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 11",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 12",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 13",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 14",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 15",
+      "locked": {}
+    },
+    {
+      "name": "พยาบาล 16",
+      "locked": {}
+    }
+  ]
+}

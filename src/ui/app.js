@@ -95,6 +95,7 @@
     for (const sh of SHIFT_VALUES) $('#' + TARGET_INPUT[sh]).value = String(S.rules.target[sh].min);
     $('#selQuota').value = String(S.rules.offQuota);
     $('#selExact').checked = S.rules.offQuotaMode === 'exact';
+    $('#selMaxDbl').value = String(S.rules.maxDoublesPerPerson);
   }
   function initRuleUI() {
     for (const sh of SHIFT_VALUES) {
@@ -113,6 +114,11 @@
     $('#selExact').addEventListener('change', () => {
       S.rules.offQuotaMode = $('#selExact').checked ? 'exact' : 'max';
       afterRuleChange();
+    });
+    $('#selMaxDbl').addEventListener('change', () => {
+      const n = +$('#selMaxDbl').value;
+      if (Number.isInteger(n) && n >= 0 && n <= 15) { S.rules.maxDoublesPerPerson = n; afterRuleChange(); }
+      else syncRuleUI();
     });
     syncRuleUI();
   }

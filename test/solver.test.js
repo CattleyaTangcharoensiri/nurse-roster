@@ -14,6 +14,9 @@ const FIXTURE = JSON.parse(
 const WARD17 = JSON.parse(
   readFileSync(fileURLToPath(new URL('./fixtures/ward17-sep.json', import.meta.url)), 'utf8'),
 );
+const OCT2569 = JSON.parse(
+  readFileSync(fileURLToPath(new URL('./fixtures/oct2569.json', import.meta.url)), 'utf8'),
+);
 
 const HARD = new Set(['nightToMorning', 'consecutiveNights', 'doubleNotAllowed', 'coverageOver']);
 const hardViolations = (rep) => rep.violations.filter((v) => HARD.has(v.type));
@@ -101,6 +104,41 @@ test('solver: เกลี่ยวันหยุด O+R ให้ใกล้�
   const spread = Math.max(...rests) - Math.min(...rests);
   assert.ok(spread <= 2, `วันหยุดต้องเกลี่ยใกล้กัน (ได้: ${rests})`);
   assert.equal(rep.gaps.filter((g) => g.status === 'under').length, 0);
+});
+
+test('solver: ต.ค. 2569 (16 คน, ช5/บ4/ด3, หยุด 8 เป๊ะ) — ยอมขึ้น 2 กะ/วัน เพื่อปิดช่องว่างวันหยุด', () => {
+  const { roster, rules } = parseRoster(OCT2569);
+  assert.equal(rules.maxDoublesPerPerson, 4);
+
+  const res = solve(roster, rules, { seed: 1 });
+  const rep = analyze(res.roster, rules);
+
+  // ครบทุกกะทุกวัน (min===max → เป๊ะ ช5/บ4/ด3)
+  assert.equal(rep.gaps.filter((g) => g.status === 'under').length, 0, 'ไม่มีกะไหนขาด');
+  assert.equal(rep.gaps.filter((g) => g.status === 'over').length, 0, 'ไม่มีกะไหนเกิน');
+
+  // หยุด 8 ครบทุกคน — ไม่ทิ้งโควตา
+  for (const p of rep.perPerson) assert.equal(p.rest, 8, `${p.name} ต้องหยุด 8 (ได้ ${p.rest})`);
+
+  // ปิดช่องว่างด้วยการขึ้น 2 กะ/วัน (arithmetic: 372 - 16*23 = 4)
+  const doubles = rep.perPerson.reduce((a, p) => a + p.doubles, 0);
+  assert.equal(doubles, 4, `ต้องใช้ 2 กะ/วัน 4 ครั้ง (ได้ ${doubles})`);
+  for (const p of rep.perPerson) assert.ok(p.doubles <= rules.maxDoublesPerPerson);
+
+  assert.equal(hardViolations(rep).length, 0, 'ไม่ผิดกฎห้าม');
+  assert.equal(rep.summary.errors, 0, 'ไม่มี error');
+});
+
+test('solver: โหมด max — ไม่ดันคนขึ้น 2 กะ/วัน เพื่อไปให้ถึงโควตาหยุด', () => {
+  const { roster } = parseRoster(OCT2569);
+  const rules = mergeRules({
+    target: { 'ช': 5, 'บ': 4, 'ด': 3 }, offQuota: 8, offQuotaMode: 'max', maxDoublesPerPerson: 4,
+  });
+  const res = solve(roster, rules, { seed: 1 });
+  const rep = analyze(res.roster, rules);
+  assert.equal(rep.gaps.filter((g) => g.status === 'under').length, 0);
+  // โหมด max: หยุดไม่ถึง 8 ไม่ผิด และไม่ควรมี restViaDoubles มายัด 2 กะ/วัน
+  assert.equal(rep.perPerson.reduce((a, p) => a + p.doubles, 0), 0);
 });
 
 test('solver: ผลซ้ำได้เมื่อ seed เดิม', () => {

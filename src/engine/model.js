@@ -237,7 +237,7 @@ export function defaultRules() {
     maxConsecutiveNights: 2,
     maxConsecutiveWork: 5,
     maxConsecutiveOff: 2,
-    maxDoublesPerPerson: 3,
+    maxDoublesPerPerson: 4,
     minGapBetweenDoubles: 3,
     lockedShiftsEditable: false,
     fairnessPriority: 'totalShifts', // 'offDays' | 'totalShifts' | 'nights' | 'weekends'
