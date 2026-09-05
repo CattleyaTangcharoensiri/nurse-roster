@@ -7,7 +7,7 @@
 // ธรรมดา ตัวเดียว — top-level const/function เห็นกันข้าม <script> ได้
 // ============================================================================
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -41,4 +41,8 @@ const html = read('src/ui/index.html')
 mkdirSync(join(root, 'dist'), { recursive: true });
 writeFileSync(join(root, 'dist/index.html'), html);
 
+// หน้าวิธีใช้ (standalone) — เสิร์ฟคู่กับ index.html บน GitHub Pages
+copyFileSync(join(root, 'src/howto.html'), join(root, 'dist/howto.html'));
+
 console.log(`dist/index.html — ${(Buffer.byteLength(html) / 1024).toFixed(1)} KB`);
+console.log(`dist/howto.html — ${(readFileSync(join(root, 'dist/howto.html'), 'utf8').length / 1024).toFixed(1)} KB`);

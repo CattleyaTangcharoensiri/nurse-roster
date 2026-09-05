@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>วิธีใช้ตารางเวรพยาบาล</title>
+<meta name="description" content="คู่มือใช้เครื่องมือจัดตารางเวรพยาบาล — เริ่มใช้ 7 ขั้น สัญลักษณ์ การแก้ด้วยมือ และกติกาที่ระบบตรวจให้">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Sarabun:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --paper:      #FAF8F4;
+    --card:       #FFFFFF;
+    --ink:        #22282B;
+    --muted:      #667176;
+    --accent:     #0E7C7B;
+    --accent-ink: #0B5E5D;
+    --accent-soft:#DCEBE9;
+    --line:       #E8E2D8;
+    --stop:       #BC3B2C;
+    --stop-soft:  #F6E1DD;
+    --shadow:     0 1px 2px rgba(30,40,42,.05), 0 6px 20px -12px rgba(30,40,42,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #12181A;
+      --card:       #182023;
+      --ink:        #E7E5DF;
+      --muted:      #93A0A2;
+      --accent:     #47B7B0;
+      --accent-ink: #7FD3CD;
+      --accent-soft:#1C3B3A;
+      --line:       #293436;
+      --stop:       #E8877A;
+      --stop-soft:  #37211E;
+      --shadow:     0 1px 2px rgba(0,0,0,.3), 0 8px 24px -14px rgba(0,0,0,.6);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Sarabun", "Noto Sans Thai", system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  .wrap {
+    max-width: 660px;
+    margin: 0 auto;
+    padding: clamp(1.5rem, 5vw, 3.5rem) clamp(1.15rem, 5vw, 2rem) 4rem;
+  }
+
+  h1, h2, h3 {
+    font-family: "IBM Plex Sans Thai", "Noto Sans Thai", system-ui, sans-serif;
+    line-height: 1.32;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .masthead { margin-bottom: 2.75rem; }
+  .eyebrow {
+    font-family: "IBM Plex Sans Thai", sans-serif;
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: .18em;
+    color: var(--accent-ink);
+    margin: 0 0 .7rem;
+  }
+  h1 {
+    font-size: clamp(1.7rem, 5.6vw, 2.7rem);
+    font-weight: 700;
+    letter-spacing: -.01em;
+    overflow-wrap: break-word;
+  }
+  .lead {
+    color: var(--muted);
+    margin: .85rem 0 1.6rem;
+    max-width: 34ch;
+  }
+  .shift-strip {
+    display: flex;
+    gap: 4px;
+    margin: 0 0 1.7rem;
+  }
+  .shift-strip span {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-family: "IBM Plex Sans Thai", sans-serif;
+    font-weight: 600;
+    font-size: .92rem;
+    padding: .45rem 0;
+    border-radius: 7px;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+  .open-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .55rem;
+    font-family: "IBM Plex Sans Thai", sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    color: var(--paper);
+    background: var(--accent);
+    padding: .72rem 1.35rem;
+    border-radius: 9px;
+    box-shadow: var(--shadow);
+    transition: transform .12s ease, background .12s ease;
+  }
+  .open-btn:hover { background: var(--accent-ink); transform: translateY(-1px); }
+  .open-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+  section { margin-top: 3rem; }
+  h2 {
+    font-size: 1.32rem;
+    font-weight: 700;
+    padding-bottom: .55rem;
+    border-bottom: 2px solid var(--accent-soft);
+    margin-bottom: 1.3rem;
+  }
+  p { margin: 0 0 1rem; }
+  a { color: var(--accent-ink); }
+
+  ol.steps {
+    list-style: none;
+    counter-reset: step;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+  }
+  ol.steps li {
+    counter-increment: step;
+    display: grid;
+    grid-template-columns: 2.2rem minmax(0, 1fr);
+    gap: .95rem;
+    align-items: start;
+  }
+  ol.steps li::before {
+    content: counter(step);
+    font-family: "IBM Plex Sans Thai", sans-serif;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-variant-numeric: tabular-nums;
+  }
+  ol.steps li > span { padding-top: .15rem; }
+
+  .tip {
+    margin-top: 1.4rem;
+    padding: .85rem 1.1rem;
+    background: var(--accent-soft);
+    border-radius: 9px;
+    font-size: .95rem;
+    color: var(--accent-ink);
+  }
+
+  .legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: .7rem;
+  }
+  .legend div {
+    display: flex;
+    align-items: baseline;
+    gap: .7rem;
+    min-width: 0;
+    padding: .55rem .7rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+  }
+  .sym {
+    flex: none;
+    font-family: "IBM Plex Sans Thai", sans-serif;
+    font-weight: 700;
+    font-size: .9rem;
+    min-width: 2.1rem;
+    text-align: center;
+    padding: .18rem .4rem;
+    border-radius: 6px;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    letter-spacing: .02em;
+  }
+  .sym.stop { background: var(--stop-soft); color: var(--stop); }
+  .legend div span:last-child { font-size: .95rem; color: var(--muted); }
+
+  .table-scroll { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .96rem;
+  }
+  th, td {
+    text-align: left;
+    padding: .7rem .9rem .7rem 0;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th {
+    font-family: "IBM Plex Sans Thai", sans-serif;
+    font-weight: 600;
+    color: var(--muted);
+    font-size: .82rem;
+    letter-spacing: .04em;
+    white-space: nowrap;
+  }
+  td:first-child {
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--accent-ink);
+    width: 12rem;
+  }
+  td small { color: var(--muted); }
+  @media (max-width: 540px) {
+    table, thead, tbody, tr, td { display: block; }
+    thead { display: none; }
+    tr { padding: .85rem 0; border-bottom: 1px solid var(--line); }
+    tr:last-child { border-bottom: 0; }
+    td { border: 0; padding: 0; }
+    td:first-child { width: auto; margin-bottom: .15rem; white-space: normal; }
+  }
+  kbd {
+    font-family: "IBM Plex Sans Thai", ui-monospace, monospace;
+    font-size: .82em;
+    font-weight: 600;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    border-radius: 5px;
+    padding: .1em .45em;
+    white-space: nowrap;
+  }
+
+  .cards { display: flex; flex-direction: column; gap: .8rem; }
+  .cards article {
+    padding: .95rem 1.1rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    border-inline-start: 3px solid var(--accent);
+  }
+  .cards h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: .25rem;
+  }
+  .cards p { margin: 0; font-size: .95rem; color: var(--muted); }
+
+  ul.rules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .7rem; }
+  ul.rules li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem .65rem;
+    padding-inline-start: 1.1rem;
+    position: relative;
+  }
+  ul.rules li::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 0;
+    top: .72em;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .callout {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.3rem 1.4rem;
+  }
+  .callout h2 { border: 0; margin-bottom: .9rem; padding: 0; }
+  .callout ul { margin: 0; padding-inline-start: 1.15rem; display: flex; flex-direction: column; gap: .7rem; }
+  .callout li::marker { color: var(--accent); }
+
+  footer {
+    margin-top: 3.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    font-size: .9rem;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1rem;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .open-btn, .open-btn:hover { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">คู่มือการใช้งาน</p>
+    <h1>วิธีใช้ตารางเวรพยาบาล</h1>
+    <p class="lead">เครื่องมือจัดตารางเวรในเบราว์เซอร์ ไม่ต้องติดตั้ง ไม่ต้องต่อเน็ต</p>
+    <div class="shift-strip" aria-hidden="true">
+      <span>เช้า</span><span>บ่าย</span><span>ดึก</span>
+    </div>
+    <a class="open-btn" href="./">เปิดเครื่องมือ&nbsp;→</a>
+  </header>
+
+  <section>
+    <h2>เริ่มใช้ใน 7 ขั้น</h2>
+    <ol class="steps">
+      <li><span>เลือก<strong>เดือนและปี (พ.ศ.)</strong> ที่มุมซ้ายบน ระบบปรับจำนวนวันของเดือนให้เอง</span></li>
+      <li><span>ตั้ง<strong>กติกา</strong>บนแถบเครื่องมือ จำนวนคนต่อกะ (ช/บ/ด), โควตาวันหยุดต่อคน (ติ๊ก <strong>เป๊ะ</strong> ถ้าห้ามขาดหรือเกิน) และเพดานการขึ้น 2 กะต่อวัน</span></li>
+      <li><span>เพิ่มรายชื่อพยาบาลด้วยปุ่ม <strong>+ พยาบาล</strong> ให้ครบ การ์ด <strong>คำแนะนำ</strong> ในรายงานจะบอกว่าเดือนนี้ควรใช้กี่คน</span></li>
+      <li><span>ใส่<strong>วันลา อบรม หรือวันหยุดที่กำหนดไว้ล่วงหน้า</strong> แล้วล็อกไว้ (กด <kbd>Shift</kbd> พร้อมคลิกที่ช่อง)</span></li>
+      <li><span>กดปุ่ม <strong>จัดตารางอัตโนมัติ</strong></span></li>
+      <li><span>เปิด <strong>รายงาน</strong> ถ้าขึ้นป้ายเขียว &ldquo;จัดได้&rdquo; แปลว่าเสร็จ ถ้ายังไม่ได้ ทำตามคำแนะนำในรายงาน</span></li>
+      <li><span>กด <strong>บันทึก JSON</strong> เก็บไว้แก้ต่อ และ <strong>ออก Excel</strong> สำหรับพิมพ์หรือส่งต่อ</span></li>
+    </ol>
+    <p class="tip">อยากเห็นตัวอย่างตารางที่จัดเสร็จสมบูรณ์ กดปุ่ม <strong>โหลดตัวอย่าง</strong> จะได้ตาราง 16 คนที่ทุกคนหยุดครบ 8 วัน คนขึ้นเวรครบทุกวัน</p>
+  </section>
+
+  <section>
+    <h2>สัญลักษณ์ในตาราง</h2>
+    <div class="legend">
+      <div><span class="sym">ช</span><span>เวรเช้า</span></div>
+      <div><span class="sym">บ</span><span>เวรบ่าย</span></div>
+      <div><span class="sym">ด</span><span>เวรดึก</span></div>
+      <div><span class="sym">R</span><span>หยุด (กำหนดเอง)</span></div>
+      <div><span class="sym">O</span><span>หยุด (ระบบเติมให้ครบโควตา)</span></div>
+      <div><span class="sym">V</span><span>ลา</span></div>
+      <div><span class="sym">T</span><span>อบรม</span></div>
+      <div><span class="sym">ช+บ</span><span>ขึ้น 2 กะในวันเดียว</span></div>
+      <div><span class="sym">บ+ด</span><span>ขึ้น 2 กะในวันเดียว</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>แก้ตารางด้วยมือ</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>ทำ</th><th>ได้ผล</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>คลิกที่ช่อง</td><td>สลับค่าไปทีละอย่าง: ว่าง → ช → บ → ด → R → O → V → T</td></tr>
+          <tr><td>คลิกขวาที่ช่อง<br><small>(มือถือ: แตะค้าง)</small></td><td>เปิดเมนูเลือกค่า มี ช+บ และ บ+ด ให้เลือกด้วย</td></tr>
+          <tr><td><kbd>Shift</kbd> + คลิกที่ช่อง</td><td>ล็อกหรือปลดล็อก ช่องที่ล็อกไว้ &ldquo;จัดตารางอัตโนมัติ&rdquo; จะไม่แตะ</td></tr>
+          <tr><td>คลิกขวาที่ชื่อพยาบาล</td><td>กำหนดว่าคนนี้ขึ้นได้เฉพาะกะไหน</td></tr>
+          <tr><td>ดับเบิลคลิกที่ชื่อ</td><td>แก้ชื่อ</td></tr>
+          <tr><td>ชี้ที่ชื่อ แล้วกดปุ่ม ×</td><td>ลบแถวพยาบาล</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>ย้อนกลับ</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>รายงาน มีอะไรบ้าง</h2>
+    <div class="cards">
+      <article>
+        <h3>คำแนะนำ</h3>
+        <p>เดือนนี้ด้วยจำนวนคนและโควตาที่ตั้งไว้ ควรปรับอะไร พร้อมตารางเทียบว่าคนกี่คนต้องขึ้น 2 กะกี่ครั้ง</p>
+      </article>
+      <article>
+        <h3>ความเป็นไปได้</h3>
+        <p>จำนวนกะที่ต้องการทั้งเดือน เทียบกับกำลังคนที่มี</p>
+      </article>
+      <article>
+        <h3>คนไม่พอ / เกิน</h3>
+        <p>วันและกะที่ยังจัดคนไม่ครบ หรือเกิน</p>
+      </article>
+      <article>
+        <h3>ผิดกฎ</h3>
+        <p>จุดที่ละเมิดกติกา บอกว่าใครและวันไหน</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <h2>กติกาที่ระบบตรวจให้อัตโนมัติ</h2>
+    <ul class="rules">
+      <li><span class="sym stop">ด → ช</span> ห้ามขึ้นเวรดึกแล้วต่อด้วยเวรเช้าวันรุ่งขึ้น</li>
+      <li><span class="sym stop">ช+ด</span> ขึ้น 2 กะต่อวันได้เฉพาะ ช+บ กับ บ+ด เท่านั้น</li>
+      <li>เวรดึกติดกันไม่เกิน 2 คืน</li>
+      <li>ทำงานติดกันไม่เกิน 5 วัน</li>
+      <li>วันหยุดติดกันไม่เกิน 2 วัน</li>
+      <li>วันหยุด R+O ต่อคน เท่ากับโควตาที่ตั้งไว้</li>
+    </ul>
+    <p class="tip">เปลี่ยนตัวเลขกติกาเมื่อไร ถ้าตารางจัดเสร็จอยู่แล้ว ระบบจัดใหม่ให้ทันที</p>
+  </section>
+
+  <section class="callout">
+    <h2>ควรรู้ก่อนใช้</h2>
+    <ul>
+      <li><strong>ไม่มีการบันทึกอัตโนมัติ</strong> ต้องกด &ldquo;บันทึก JSON&rdquo; เอง ไฟล์นี้เปิดกลับมาแก้ต่อได้</li>
+      <li>กด &ldquo;จัดตารางอัตโนมัติ&rdquo; ทุกครั้งจะ<strong>ล้างช่องที่ไม่ได้ล็อกทิ้งทั้งหมด</strong> แล้วจัดใหม่จากศูนย์ เก็บเฉพาะช่องที่ล็อก วันลา และวันอบรม กดซ้ำกี่ครั้งก็ได้ผลเหมือนเดิม</li>
+      <li>ใช้ได้ทั้งคอมพิวเตอร์ แท็บเล็ต และมือถือ</li>
+      <li>ไฟล์ Excel และ CSV ที่ออกมา เปิดใน Excel ได้ทันที</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>ทำงานออฟไลน์ทั้งหมด · ไฟล์เดียว</span>
+    <a href="./">เปิดเครื่องมือ →</a>
+  </footer>
+</div>
+</body>
+</html>

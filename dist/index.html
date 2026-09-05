@@ -46,6 +46,7 @@ button { font-family: inherit; }
   background: #fff; color: var(--ink); cursor: pointer; font-size: 12px; font-weight: bold;
 }
 .btn:hover { background: #F8FAFC; }
+a.btn { display: inline-block; text-decoration: none; }
 .btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
 .btn-primary:hover { background: var(--blue-dark); }
 .btn.on { background: var(--blue); color: #fff; border-color: var(--blue); }
@@ -320,6 +321,7 @@ td.cell { touch-action: manipulation; }
       <input id="selMaxDbl" type="number" min="0" max="15" step="1">
     </div>
     <div class="spacer"></div>
+    <a class="btn" href="howto.html" target="_blank" rel="noopener">วิธีใช้</a>
     <button class="btn" data-act="addStaff">+ พยาบาล</button>
     <button class="btn" data-act="sample">โหลดตัวอย่าง</button>
     <button class="btn" data-act="open">เปิดไฟล์ (JSON/CSV)</button>
