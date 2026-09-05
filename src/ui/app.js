@@ -101,20 +101,40 @@
       const input = $('#' + TARGET_INPUT[sh]);
       input.addEventListener('change', () => {
         const n = +input.value;
-        if (Number.isInteger(n) && n >= 0 && n <= 99) { S.rules.target[sh] = { min: n, max: n }; render(); }
+        if (Number.isInteger(n) && n >= 0 && n <= 99) { S.rules.target[sh] = { min: n, max: n }; afterRuleChange(); }
         else syncRuleUI();
       });
     }
     $('#selQuota').addEventListener('change', () => {
       const n = +$('#selQuota').value;
-      if (Number.isInteger(n) && n >= 0 && n <= 31) { S.rules.offQuota = n; render(); }
+      if (Number.isInteger(n) && n >= 0 && n <= 31) { S.rules.offQuota = n; afterRuleChange(); }
       else syncRuleUI();
     });
     $('#selExact').addEventListener('change', () => {
       S.rules.offQuotaMode = $('#selExact').checked ? 'exact' : 'max';
-      render();
+      afterRuleChange();
     });
     syncRuleUI();
+  }
+
+  // ตารางถูกจัดเต็มแล้วหรือยัง — ไม่มีช่องว่างที่แก้ได้ และมีเวร/O ที่ระบบเติมอยู่จริง
+  function rosterFilled() {
+    const r = S.roster;
+    if (!r || !r.staff.length) return false;
+    let hasFill = false;
+    for (const row of r.grid) {
+      for (const c of row) {
+        if (isEmpty(c) && !c.locked) return false;
+        if (!c.locked && (c.shifts.length > 0 || c.off === OFF.FILLED)) hasFill = true;
+      }
+    }
+    return hasFill;
+  }
+
+  // เปลี่ยนกติกาแล้ว: ถ้าตารางถูกจัดเต็มอยู่แล้ว จัดใหม่ให้ตรงกติกาใหม่; ถ้ายัง แค่ re-render
+  function afterRuleChange() {
+    if (rosterFilled()) runSolve();
+    else render();
   }
 
   function shiftMonth(delta) {
