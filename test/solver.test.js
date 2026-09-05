@@ -153,6 +153,27 @@ test('solver: โหมด max — ไม่ดันคนขึ้น 2 กะ
   assert.equal(rep.perPerson.reduce((a, p) => a + p.doubles, 0), 0);
 });
 
+test('solver: คนไม่พอ → coverage มาก่อนโควตาหยุด (ไม่แจกวันหยุดจนวอร์ดว่าง)', () => {
+  // 12 คน x 14 วัน, ต้องการ 12 คน/วัน — จัดไม่ครบแน่ ๆ
+  const rules = mergeRules({
+    target: { 'ช': 5, 'บ': 4, 'ด': 3 }, offQuota: 8, offQuotaMode: 'exact', maxConsecutiveWork: 5,
+  });
+  const roster = makeRoster({
+    days: 14, firstWeekday: 'จันทร์',
+    staff: Array.from({ length: 12 }, (_, i) => ({ name: 'N' + (i + 1) })),
+  });
+  const res = solve(roster, rules, { seed: 1 });
+  const rep = analyze(res.roster, rules);
+
+  // solver ต้องดันคนขึ้นเวรให้มากที่สุดเท่าที่กฎยอม (maxConsecutiveWork 5 → ทำได้ ~12/14 วัน)
+  // ไม่ใช่กันวันหยุดไว้ 8 แล้วปล่อยกะโหว่
+  const rests = rep.perPerson.map((p) => p.rest);
+  assert.ok(Math.max(...rests) <= 4, `ห้ามแจกวันหยุดเต็มโควตาแล้วทิ้ง coverage (rests=${rests})`);
+  assert.ok(rep.feasibility.assignedSlots >= rep.feasibility.slotsNeeded - 30,
+    `ต้องเติมกะให้ได้เกือบเต็ม (${rep.feasibility.assignedSlots}/${rep.feasibility.slotsNeeded})`);
+  assert.equal(hardViolations(rep).length, 0);
+});
+
 test('solver: ผลซ้ำได้เมื่อ seed เดิม', () => {
   const { roster, rules } = parseRoster(FIXTURE);
   const a = solve(roster, rules, { seed: 42, iterations: 1500 });

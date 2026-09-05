@@ -351,15 +351,56 @@ function polish(R, rules, rnd, iterations) {
 }
 
 // ---------------------------------------------------------------------------
-// 3) จัดวันหยุด O+R ให้ตรงโควตา (ยกเว้นคนที่ล็อกหยุดไว้เกินอยู่แล้ว)
-//    - เติม O จนถึงโควตา
-//    - ช่องว่างที่เหลือ พยายามให้เป็นเวร (ถ้ากะยังไม่ถึงเพดาน) มิฉะนั้น O
+// 3) จัดช่องว่างที่เหลือ — ลำดับความสำคัญ:
+//    A) ปิด coverage ให้ถึงขั้นต่ำของทุกกะทุกวันก่อน (สำคัญสุด — คนไข้ต้องมีคนดูแล)
+//    B) แล้วค่อยเติม O ให้ถึงโควตาหยุด
+//    C) ช่องว่างที่เหลือ → เวร (ถ้ายังไม่ถึงเพดาน) มิฉะนั้น O
 // ---------------------------------------------------------------------------
 function fillRest(R, rules) {
   const active = rules.activeShifts.filter((s) => isShiftActive(rules, s));
   const D = R.days;
+  const N = R.staff.length;
 
-  for (let i = 0; i < R.staff.length; i++) {
+  const emptyAt = (i, d) => {
+    const c = R.grid[i][d];
+    return !c.locked && c.off === null && c.shifts.length === 0;
+  };
+  const byLoad = (list) => list
+    .map((i) => ({ i, k: loadOf(R.grid[i]) }))
+    .sort((a, b) => a.k - b.k)
+    .map((x) => x.i);
+
+  // ---- A) coverage ก่อน ----
+  for (let d = 0; d < D; d++) {
+    for (const s of FILL_ORDER) {
+      if (!active.includes(s)) continue;
+      let guard = 0;
+      while (assignedCount(R, d, s) < bandForDay(R, rules, d, s).min && guard++ < N * 2) {
+        let placed = false;
+        // 1) คนที่ช่องวันนั้นว่าง
+        const free = [];
+        for (let i = 0; i < N; i++) if (emptyAt(i, d)) free.push(i);
+        for (const i of byLoad(free)) {
+          if (tryPut(R, rules, i, d, [s])) { placed = true; break; }
+        }
+        // 2) ยังไม่พอ → ให้คนที่ทำงานกะเดียวอยู่แล้วขึ้นเป็น 2 กะ/วัน
+        if (!placed) {
+          const one = [];
+          for (let i = 0; i < N; i++) {
+            const c = R.grid[i][d];
+            if (!c.locked && c.shifts.length === 1 && !c.shifts.includes(s)) one.push(i);
+          }
+          for (const i of byLoad(one)) {
+            if (tryPut(R, rules, i, d, [R.grid[i][d].shifts[0], s])) { placed = true; break; }
+          }
+        }
+        if (!placed) break; // จัดไม่ได้จริง ๆ (เช่นติดเพดานเวรติดกัน) — ปล่อยให้ report แจ้ง
+      }
+    }
+  }
+
+  // ---- B) เติม O ให้ถึงโควตาหยุด จากช่องที่ยังว่าง ----
+  for (let i = 0; i < N; i++) {
     const row = R.grid[i];
     let lockedRest = 0;
     let rest = 0;
@@ -372,31 +413,28 @@ function fillRest(R, rules) {
         if (c.locked) lockedRest += 1;
       } else if (c.off === OFF.LEAVE) {
         leave += 1;
-      } else if (c.off === null && c.shifts.length === 0 && !c.locked) {
+      } else if (emptyAt(i, d)) {
         empties.push(d);
       }
     }
-
-    // วันที่นับเข้าโควตาแล้ว (ให้ตรงกับ analyze: R+O และ V เมื่อ countLeaveInQuota)
     const counted = rest + (rules.countLeaveInQuota ? leave : 0);
-    // exact = ต้องได้เท่าโควตาพอดี → เติม O ให้ถึง
-    // max   = โควตาเป็นเพดาน → ไม่ดันให้ถึง ปล่อยช่องว่างไว้ให้ลูปล่างลองจัดเวรก่อน
+    // exact = ดันให้ถึงโควตา ; max = โควตาเป็นเพดาน ไม่ดัน
     const target = rules.offQuotaMode === 'exact'
       ? Math.max(lockedRest, rules.offQuota)
       : lockedRest;
     let need = target - counted;
-
-    // เติม O ให้ถึงโควตา
     for (const d of empties) {
       if (need <= 0) break;
       row[d].off = OFF.FILLED;
       need -= 1;
     }
+  }
 
-    // ช่องว่างที่เหลือ → เวร (ดูดซับ capacity เข้า coverage) ไม่งั้น O
-    for (const d of empties) {
-      const c = row[d];
-      if (c.off !== null || c.shifts.length > 0) continue;
+  // ---- C) ช่องว่างที่เหลือ → เวร (ดูดซับ capacity) ไม่งั้น O ----
+  for (let i = 0; i < N; i++) {
+    for (let d = 0; d < D; d++) {
+      if (!emptyAt(i, d)) continue;
+      const c = R.grid[i][d];
       let placed = false;
       for (const s of active) {
         const band = bandForDay(R, rules, d, s);
@@ -492,6 +530,14 @@ function restViaDoubles(R, rules) {
   if (rules.offQuotaMode !== 'exact') return;
   const D = R.days;
   const N = R.staff.length;
+  const active = rules.activeShifts.filter((s) => isShiftActive(rules, s));
+
+  // coverage ต้องครบก่อน — ถ้าวอร์ดยังมีกะไหนคนไม่ถึงขั้นต่ำ อย่าเพิ่งไปเกลี่ยวันหยุด
+  for (let d = 0; d < D; d++) {
+    for (const s of active) {
+      if (assignedCount(R, d, s) < bandForDay(R, rules, d, s).min) return;
+    }
+  }
 
   const isRestCell = (c) => c.off === OFF.LOCKED || c.off === OFF.FILLED;
   const lockedRestOf = (i) => R.grid[i].reduce((n, c) => n + (c.locked && isRestCell(c) ? 1 : 0), 0);
