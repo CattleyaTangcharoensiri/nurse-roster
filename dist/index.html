@@ -1,0 +1,2959 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>จัดตารางเวรพยาบาล</title>
+<style>/* ============================================================
+   จัดตารางเวรพยาบาล — ตารางคือหน้าจอ ไม่ใช่ฟอร์ม
+   ============================================================ */
+:root {
+  --col-name: 168px;
+  --col-sum: 156px;
+  --col-day: 34px;
+  --line: #E2E8F0;
+  --ink: #1E293B;
+  --muted: #64748B;
+  --blue: #2563EB;
+  --blue-dark: #1D4ED8;
+  --weekend: #FEF2F2;
+  --red: #DC2626;
+  --amber: #B45309;
+  --green: #15803D;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: Tahoma, "Segoe UI", system-ui, sans-serif;
+  background: #fff;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.4;
+}
+button { font-family: inherit; }
+
+.app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* ---------- TOOLBAR ---------- */
+.toolbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 14px; border-bottom: 1px solid var(--line); flex: none;
+}
+.toolbar .title { font-size: 15px; font-weight: bold; }
+.toolbar .spacer { flex: 1; }
+.btn {
+  padding: 7px 12px; border: 1px solid var(--line); border-radius: 5px;
+  background: #fff; color: var(--ink); cursor: pointer; font-size: 12px; font-weight: bold;
+}
+.btn:hover { background: #F8FAFC; }
+.btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+.btn-primary:hover { background: var(--blue-dark); }
+.btn.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+.btn.nav { padding: 6px 9px; font-size: 15px; line-height: 1; color: var(--blue); }
+
+.monthpick { display: flex; align-items: center; gap: 4px; margin-left: 14px; }
+.monthpick select, .monthpick input {
+  font-family: inherit; font-size: 12px; font-weight: bold; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 5px; padding: 6px 6px; background: #fff;
+}
+.monthpick select { min-width: 96px; }
+.monthpick input { width: 62px; text-align: center; }
+
+.rulepick { display: flex; align-items: center; gap: 6px; margin-left: 12px; font-size: 12px; color: var(--muted); }
+.rulepick input[type="number"] {
+  width: 46px; text-align: center; font-family: inherit; font-size: 12px; font-weight: bold;
+  color: var(--ink); border: 1px solid var(--line); border-radius: 5px; padding: 6px 4px;
+}
+.rulepick label { display: flex; align-items: center; gap: 3px; cursor: pointer; }
+
+/* ---------- LEGEND ---------- */
+.legend {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 8px 14px; border-bottom: 1px solid var(--line); flex: none;
+}
+.legend .sym {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold;
+}
+.legend .hint { margin-left: auto; color: var(--muted); font-size: 11px; }
+
+/* สี token */
+.t-ch  { background: #FEF3C7; color: #92400E; }
+.t-b   { background: #FFE4D5; color: #9A3412; }
+.t-d   { background: #DBEAFE; color: #1E40AF; }
+.t-dbl { background: #FDE68A; color: #78350F; box-shadow: inset 0 0 0 1px #D97706; }
+.t-R   { background: #F1F5F9; color: #64748B; }
+.t-O   { background: #E2E8F0; color: #475569; }
+.t-V   { background: #F3E8FF; color: #6B21A8; }
+.t-T   { background: #DCFCE7; color: #166534; }
+
+/* ---------- TABLE ---------- */
+.table-wrap { flex: 1; position: relative; overflow: hidden; }
+.viewport { height: 100%; overflow: auto; outline: none; }
+.grid { border-collapse: separate; border-spacing: 0; border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.grid th, .grid td {
+  border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  background: #fff; text-align: center; vertical-align: middle;
+}
+.grid .day { width: var(--col-day); min-width: var(--col-day); max-width: var(--col-day); }
+
+thead th {
+  position: sticky; top: 0; z-index: 20; background: #F8FAFC;
+  height: 42px; font-size: 12px; font-weight: bold; padding: 2px;
+}
+.dh-num { font-size: 12px; font-weight: bold; display: block; }
+.dh-dow { font-size: 10px; color: var(--muted); display: block; }
+.day.wknd { background: var(--weekend); }
+.day.wknd .dh-num, .day.wknd .dh-dow { color: var(--red); }
+.day.bad { box-shadow: inset 0 -3px 0 var(--red); }
+
+.col-name {
+  position: sticky; left: 0; z-index: 15;
+  width: var(--col-name); min-width: var(--col-name); max-width: var(--col-name);
+  text-align: left; padding: 5px 8px 5px 12px;
+}
+tbody .col-name { position: relative; }
+thead .col-name, tfoot .col-name { z-index: 30; background: #F8FAFC; }
+.nm-1 { display: block; font-size: 13px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 44px; cursor: text; }
+.rowdel {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  border: none; background: none; color: var(--muted);
+  font-size: 15px; line-height: 1; cursor: pointer; padding: 0 4px; opacity: 0;
+}
+.rowcfg {
+  position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+  border: 1px solid var(--line); background: #fff; color: var(--blue);
+  font-size: 10px; font-weight: bold; line-height: 1; cursor: pointer;
+  padding: 2px 4px; border-radius: 4px; opacity: 0;
+}
+tbody tr:hover .rowdel, tbody tr:hover .rowcfg { opacity: 1; }
+.rowdel:hover { color: var(--red); }
+.rowcfg:hover { background: #EFF6FF; }
+
+.menu-head { padding: 6px 12px 5px; font-size: 11px; font-weight: bold; color: var(--muted); border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.menu .chk { display: inline-block; width: 16px; text-align: center; }
+.menu-done { justify-content: center !important; color: var(--blue) !important; font-weight: bold; border-top: 1px solid var(--line); margin-top: 4px; }
+.nm-2 { display: block; font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.col-sum {
+  position: sticky; right: 0; z-index: 15;
+  width: var(--col-sum); min-width: var(--col-sum); max-width: var(--col-sum);
+  border-left: 2px solid var(--line); padding: 0; text-align: center;
+}
+thead .col-sum, tfoot .col-sum { z-index: 30; background: #F8FAFC; }
+tfoot .col-sum { padding: 3px 8px; text-align: left; font-size: 11px; }
+
+/* ตารางสรุปด้านขวา — เหมือน PDF: รวมวันทำงาน | ช | บ | ด | ช+บ | O+R */
+.sumgrid {
+  display: grid;
+  grid-template-columns: 34px 22px 22px 22px 26px 30px;
+  align-items: center; height: 100%;
+}
+.sumgrid span {
+  padding: 3px 0; text-align: center; font-size: 11px; font-weight: bold;
+  border-left: 1px solid var(--line); align-self: stretch;
+  display: flex; align-items: center; justify-content: center;
+}
+.sumgrid span:first-child { border-left: none; }
+.sumgrid.head span { font-size: 10px; color: var(--muted); }
+.sumgrid span.z { color: #CBD5E1; font-weight: normal; }
+
+tbody tr:nth-child(even) td.cell { background: #FCFCFD; }
+td.cell { height: 34px; padding: 0; cursor: pointer; user-select: none; position: relative; }
+td.cell.wknd { background: var(--weekend); }
+.chip {
+  display: inline-block; min-width: 20px; padding: 3px 7px;
+  border-radius: 6px; font-size: 12px; font-weight: bold; line-height: 1.2;
+}
+.chip.empty { min-width: 0; padding: 0; color: #CBD5E1; }
+td.cell.locked { box-shadow: inset 0 0 0 2px #334155; }
+td.cell.locked::after {
+  content: "🔒"; position: absolute; top: 0; right: 1px; font-size: 8px; line-height: 1;
+}
+td.cell.bad .chip { text-decoration: underline wavy var(--red); text-underline-offset: 3px; }
+
+tfoot td {
+  position: sticky; z-index: 20; background: #F8FAFC;
+  height: 24px; font-size: 11px; font-weight: bold;
+}
+tfoot tr:nth-child(1) td { bottom: 96px; }
+tfoot tr:nth-child(2) td { bottom: 72px; }
+tfoot tr:nth-child(3) td { bottom: 48px; }
+tfoot tr:nth-child(4) td { bottom: 24px; }
+tfoot tr:nth-child(5) td { bottom: 0; }
+tfoot .col-name { text-align: left; }
+.cnt.under { color: var(--red); background: var(--weekend); }
+.cnt.over  { color: #fff; background: var(--red); }
+.cnt.ok    { color: var(--green); }
+
+/* ---------- EMPTY ---------- */
+.empty { display: none; flex-direction: column; align-items: center; gap: 12px; padding: 80px 20px; }
+.empty.show { display: flex; }
+.empty p { color: var(--muted); font-size: 14px; margin: 0; }
+
+/* ---------- REPORT ---------- */
+.report {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 46%;
+  background: #fff; border-top: 2px solid var(--line);
+  display: flex; flex-direction: column; z-index: 60;
+  box-shadow: 0 -8px 24px rgba(0,0,0,.08);
+}
+.report[hidden] { display: none; }
+.report .rp-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px; border-bottom: 1px solid var(--line); flex: none;
+}
+.report .rp-head b { font-size: 13px; }
+.report .rp-body { flex: 1; overflow: auto; display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 12px; padding: 12px 14px; }
+.rp-card { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; min-width: 0; }
+.rp-card h4 { margin: 0 0 8px; font-size: 12px; color: var(--muted); }
+.rp-stat { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.rp-stat b { font-size: 18px; }
+.rp-stat b.warn { color: var(--red); }
+.rp-stat span { font-size: 11px; color: var(--muted); }
+.rp-line { padding: 5px 8px; border-radius: 4px; font-size: 11px; margin-bottom: 4px; background: #F8FAFC; }
+.rp-line.error { background: #FEF2F2; color: #991B1B; }
+.rp-line.warn { background: #FFFBEB; color: #92400E; }
+.rp-ok { font-size: 11px; color: var(--green); }
+.pill { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 10px; font-weight: bold; }
+.pill.good { background: #DCFCE7; color: #166534; }
+.pill.bad { background: #FEE2E2; color: #991B1B; }
+
+/* ---------- MENU / TOAST ---------- */
+.menu {
+  position: fixed; min-width: 132px; background: #fff;
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 0; z-index: 300;
+  box-shadow: 0 6px 20px rgba(0,0,0,.14);
+}
+.menu[hidden] { display: none; }
+.menu button {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 6px 12px; background: none; border: none; cursor: pointer; font-size: 12px; color: var(--ink);
+}
+.menu button:hover { background: #F1F5F9; }
+.menu .sep { height: 1px; background: var(--line); margin: 4px 0; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  background: var(--ink); color: #fff; padding: 9px 16px; border-radius: 6px;
+  font-size: 12px; z-index: 400;
+}
+.toast[hidden] { display: none; }
+
+/* ---------- PRINT ---------- */
+@media print {
+  .toolbar, .legend, .report, .menu, .toast { display: none !important; }
+  .app, .table-wrap, .viewport { height: auto; overflow: visible; }
+  thead th, tbody .col-name, .col-sum, tfoot td { position: static; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="toolbar">
+    <div class="title" id="title">จัดตารางเวรพยาบาล</div>
+    <div class="monthpick">
+      <button class="btn nav" data-act="prevMonth" title="เดือนก่อนหน้า" aria-label="เดือนก่อนหน้า">‹</button>
+      <select id="selMonth" title="เดือน"></select>
+      <input id="selYear" type="number" min="2500" max="2650" step="1" title="พ.ศ.">
+      <button class="btn nav" data-act="nextMonth" title="เดือนถัดไป" aria-label="เดือนถัดไป">›</button>
+    </div>
+    <div class="rulepick" title="จำนวนคนต่อกะต่อวัน">
+      <span>คน/กะ</span>
+      <label>ช <input id="selTargetCh" type="number" min="0" max="99" step="1"></label>
+      <label>บ <input id="selTargetB" type="number" min="0" max="99" step="1"></label>
+      <label>ด <input id="selTargetD" type="number" min="0" max="99" step="1"></label>
+    </div>
+    <div class="rulepick" title="วันหยุด O+R ต่อคน">
+      <span>หยุด O+R/คน</span>
+      <input id="selQuota" type="number" min="0" max="31" step="1">
+      <label><input id="selExact" type="checkbox"> เป๊ะ (ห้ามขาด/เกิน)</label>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn" data-act="addStaff">+ พยาบาล</button>
+    <button class="btn" data-act="sample">โหลดตัวอย่าง</button>
+    <button class="btn" data-act="open">เปิดไฟล์ (JSON/CSV)</button>
+    <button class="btn" data-act="save">บันทึก JSON</button>
+    <button class="btn" data-act="exportXlsx">ออก Excel</button>
+    <button class="btn" data-act="exportCsv">ออก CSV</button>
+    <button class="btn" data-act="print">พิมพ์</button>
+    <button class="btn" data-act="clear">ล้าง</button>
+    <button class="btn" data-act="report" id="reportBtn">รายงาน</button>
+    <button class="btn btn-primary" data-act="solve" id="solveBtn">จัดตารางอัตโนมัติ</button>
+  </header>
+
+  <div class="legend" id="legend"></div>
+
+  <main class="table-wrap">
+    <div class="viewport" id="viewport">
+      <table class="grid" id="grid">
+        <thead></thead>
+        <tbody></tbody>
+        <tfoot></tfoot>
+      </table>
+      <div class="empty" id="empty">
+        <p>ไม่มีแถวพยาบาล</p>
+        <button class="btn btn-primary" data-act="addStaff">+ เพิ่มพยาบาล</button>
+        <button class="btn" data-act="sample">โหลดตัวอย่าง</button>
+        <button class="btn" data-act="open">เปิดไฟล์ .json</button>
+      </div>
+    </div>
+  </main>
+
+  <section class="report" id="report" hidden></section>
+</div>
+
+<input type="file" id="file" accept=".json,.csv,application/json,text/csv" hidden>
+<div class="menu" id="menu" hidden></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>// ============================================================================
+// model.js — โครงสร้างข้อมูล + ค่าคงที่
+//
+// JS บริสุทธิ์ ห้ามแตะ DOM (ต้อง import ด้วย node ได้ตรง ๆ)
+//
+// แนวคิดสำคัญ:
+//   - engine ผูกกับปฏิทินจริงเฉพาะผ่าน `days` + `firstWeekday` เท่านั้น
+//     (year/month เป็นข้อมูลเสริมของ UI — engine ไม่อ่าน)
+//   - วันในโค้ด engine เป็น dayIndex 0-based; ไฟล์บันทึกใช้เลขวันที่ 1-based
+// ============================================================================
+
+/** กะทำงาน */
+const SHIFT = { MORNING: 'ช', AFTERNOON: 'บ', NIGHT: 'ด' };
+
+/** สถานะไม่ขึ้นเวรปกติ
+ *   R = หยุดที่คนล็อกเอง (locked off)
+ *   O = หยุดที่ระบบเติมให้ครบโควตา (auto-off ที่ solver ใส่) — นับเป็นวันหยุดเหมือน R
+ *   V = ลา
+ *   T = อบรม
+ */
+const OFF = { LOCKED: 'R', FILLED: 'O', LEAVE: 'V', TRAINING: 'T' };
+
+const SHIFT_VALUES = [SHIFT.MORNING, SHIFT.AFTERNOON, SHIFT.NIGHT];
+const OFF_VALUES = [OFF.LOCKED, OFF.FILLED, OFF.LEAVE, OFF.TRAINING];
+
+/** ทั้ง R และ O ถือเป็น "วันหยุด" ในการนับโควตา/วันทำงาน */
+const OFF_AS_REST = [OFF.LOCKED, OFF.FILLED];
+
+/** ลำดับกะที่ถือว่า "หมุนไปข้างหน้า": ช → บ → ด */
+const ROTATION_ORDER = [SHIFT.MORNING, SHIFT.AFTERNOON, SHIFT.NIGHT];
+
+// ---- ปฏิทินไทย: อาทิตย์ = 0 (ตรงกับ Date.getDay()) ----
+const WEEKDAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+const WEEKDAY_SHORT = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+const WEEKEND_INDICES = [0, 6]; // อาทิตย์, เสาร์
+
+const WEEKDAY_ALIASES = {
+  'พฤหัส': 'พฤหัสบดี',
+  'พฤหัสฯ': 'พฤหัสบดี',
+  'อาทิตย': 'อาทิตย์',
+};
+
+/** ชื่อวัน (ไทย, รับ alias สั้น) → index 0..6 */
+function weekdayIndex(name) {
+  if (typeof name === 'number') {
+    if (name >= 0 && name <= 6) return name;
+    throw new Error(`weekday index นอกช่วง: ${name}`);
+  }
+  const key = String(name).trim();
+  const canonical = WEEKDAY_ALIASES[key] || key;
+  const idx = WEEKDAYS.indexOf(canonical);
+  if (idx === -1) throw new Error(`ไม่รู้จักชื่อวัน: "${name}"`);
+  return idx;
+}
+
+// ---------------------------------------------------------------------------
+// CELL
+// ---------------------------------------------------------------------------
+
+/** ช่องในตาราง — ทำงาน (shifts) กับ หยุด (off) เป็น exclusive กัน */
+function makeCell() {
+  return { shifts: [], off: null, locked: false };
+}
+
+function isWorking(cell) { return cell.shifts.length > 0; }
+function isOff(cell) { return cell.off !== null; }
+function isEmpty(cell) { return cell.shifts.length === 0 && cell.off === null; }
+function isDouble(cell) { return cell.shifts.length >= 2; }
+function isRest(cell) { return OFF_AS_REST.includes(cell.off); }
+function isLeave(cell) { return cell.off === OFF.LEAVE; }
+function isTraining(cell) { return cell.off === OFF.TRAINING; }
+
+/** ตั้งเป็นกะทำงาน (ล้าง off) */
+function setCellShifts(cell, shifts) {
+  const list = Array.isArray(shifts) ? shifts : [shifts];
+  for (const s of list) {
+    if (!SHIFT_VALUES.includes(s)) throw new Error(`ค่ากะไม่ถูกต้อง: "${s}"`);
+  }
+  cell.shifts = [...list];
+  cell.off = null;
+  return cell;
+}
+
+/** ตั้งเป็นวันหยุด/ลา/อบรม (ล้าง shifts) */
+function setCellOff(cell, off) {
+  if (!OFF_VALUES.includes(off)) throw new Error(`ค่าหยุดไม่ถูกต้อง: "${off}"`);
+  cell.off = off;
+  cell.shifts = [];
+  return cell;
+}
+
+function clearCellValue(cell) {
+  cell.shifts = [];
+  cell.off = null;
+  return cell;
+}
+
+function cloneCell(cell) {
+  return { shifts: [...cell.shifts], off: cell.off, locked: cell.locked };
+}
+
+// ---------------------------------------------------------------------------
+// STAFF
+// ---------------------------------------------------------------------------
+
+/** token กะที่ตั้งเป็น "เงื่อนไขรายบุคคล" ได้ */
+const ALLOW_TOKENS = ['ช', 'บ', 'ด', 'ช+บ', 'บ+ด', 'ช+ด'];
+
+function makeStaff({ id, name, role = '', team = '', teamColor = '', allow = [] }) {
+  return { id, name, role, team, teamColor, allow: [...allow] };
+}
+
+/**
+ * พยาบาลคนนี้ขึ้นกะชุดนี้ได้ไหม (ตาม staff.allow)
+ *   allow ว่าง = ทำได้ทุกกะ
+ *   หยุด/ลา/อบรม (shifts ว่าง) = ไม่เกี่ยว คืน true เสมอ
+ */
+function staffAllowsShift(staff, shifts) {
+  const allow = staff && staff.allow;
+  if (!allow || allow.length === 0) return true;
+  if (!shifts || shifts.length === 0) return true;
+  return allow.includes(formatDoublePattern(shifts));
+}
+
+// ---------------------------------------------------------------------------
+// ROSTER
+// ---------------------------------------------------------------------------
+
+/**
+ * สร้าง roster เปล่า
+ * @param {{days:number, firstWeekday:string|number, staff?:object[], year?:number|null, month?:number|null}} opts
+ */
+function makeRoster({ days, firstWeekday, staff = [], year = null, month = null }) {
+  if (!Number.isInteger(days) || days < 1 || days > 31) {
+    throw new Error(`จำนวนวันไม่ถูกต้อง: ${days}`);
+  }
+  const fwi = weekdayIndex(firstWeekday);
+  const roster = {
+    year: year ?? null,
+    month: month ?? null,
+    days,
+    firstWeekday: WEEKDAYS[fwi],
+    firstWeekdayIndex: fwi,
+    staff: [],
+    grid: [],
+    _seq: 0, // ตัวนับ id — เดินหน้าอย่างเดียว ไม่ถอยเมื่อลบแถว (กัน id ชนกัน)
+  };
+  for (const s of staff) addStaff(roster, s);
+  return roster;
+}
+
+function nextStaffId(roster, provided) {
+  if (provided) return provided;
+  // เดินจากตัวนับที่ไม่ถอยหลัง — ลบแถวแล้วเพิ่มใหม่จะไม่ได้ id ซ้ำของเดิม
+  roster._seq = (roster._seq || 0) + 1;
+  return `p${roster._seq}`;
+}
+
+function addStaff(roster, entry) {
+  const id = nextStaffId(roster, entry && entry.id);
+  roster.staff.push(makeStaff({ ...entry, id }));
+  roster.grid.push(Array.from({ length: roster.days }, makeCell));
+  return id;
+}
+
+function removeStaff(roster, staffIndex) {
+  roster.staff.splice(staffIndex, 1);
+  roster.grid.splice(staffIndex, 1);
+}
+
+function staffIndexById(roster, id) {
+  return roster.staff.findIndex((s) => s.id === id);
+}
+
+function getCell(roster, staffIndex, dayIndex) {
+  const row = roster.grid[staffIndex];
+  return row ? row[dayIndex] : undefined;
+}
+
+function cloneRoster(roster) {
+  return {
+    year: roster.year,
+    month: roster.month,
+    days: roster.days,
+    firstWeekday: roster.firstWeekday,
+    firstWeekdayIndex: roster.firstWeekdayIndex,
+    _seq: roster._seq || 0,
+    staff: roster.staff.map((s) => ({ ...s, allow: [...(s.allow || [])] })),
+    grid: roster.grid.map((row) => row.map(cloneCell)),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// ปฏิทินภายใน roster
+// ---------------------------------------------------------------------------
+
+/** dayIndex (0-based) → weekday index 0..6 */
+function weekdayIndexForDay(roster, dayIndex) {
+  return (roster.firstWeekdayIndex + dayIndex) % 7;
+}
+
+function weekdayNameForDay(roster, dayIndex) {
+  return WEEKDAYS[weekdayIndexForDay(roster, dayIndex)];
+}
+
+function isWeekend(roster, dayIndex) {
+  return WEEKEND_INDICES.includes(weekdayIndexForDay(roster, dayIndex));
+}
+
+/** dayIndex ที่เป็นวันแรกของแต่ละสัปดาห์ (ไว้ตีเส้นหนาทุก 7 วันใน UI) */
+function isWeekBoundary(roster, dayIndex) {
+  return dayIndex > 0 && weekdayIndexForDay(roster, dayIndex) === roster.firstWeekdayIndex;
+}
+
+// ---------------------------------------------------------------------------
+// RULES
+// ---------------------------------------------------------------------------
+
+function defaultRules() {
+  return {
+    // จำนวนคนต่อกะต่อวัน — เป็นช่วง { min, max } (min===max = ต้องเป๊ะ, max=null = ไม่มีเพดาน)
+    activeShifts: [SHIFT.MORNING, SHIFT.AFTERNOON, SHIFT.NIGHT], // เอากะออก = ตัดจากลิสต์นี้
+    target: {
+      [SHIFT.MORNING]: { min: 4, max: 4 },
+      [SHIFT.AFTERNOON]: { min: 3, max: 3 },
+      [SHIFT.NIGHT]: { min: 2, max: 2 },
+    },
+    targetOverrides: [],            // { weekday?, day?, shift, min, max }
+    offQuota: 6,
+    offQuotaMode: 'exact',          // 'exact' | 'max'
+    countLeaveInQuota: false,
+    keepExcessLockedOff: true,
+    // ขึ้น 2 กะ/วัน ได้ทุกแบบเมื่อจำเป็น — ไม่ล็อกว่าต้องเป็นคู่ไหน
+    // (ตัดออกจากลิสต์ = ห้ามคู่นั้น; ลิสต์ว่าง = ห้ามขึ้น 2 กะ/วัน ทั้งหมด)
+    allowedDoubles: ['ช+บ', 'บ+ด', 'ช+ด'],
+    maxNightToMorning: 0,            // ด → เช้าวันรุ่งขึ้น: ห้ามเด็ดขาด (0 = ผิดกฎเสมอ)
+    maxConsecutiveNights: 2,
+    maxConsecutiveWork: 5,
+    maxConsecutiveOff: 2,
+    maxDoublesPerPerson: 3,
+    minGapBetweenDoubles: 3,
+    lockedShiftsEditable: false,
+    fairnessPriority: 'totalShifts', // 'offDays' | 'totalShifts' | 'nights' | 'weekends'
+    weights: { safety: 500, coverage: 1000, workload: 120, fairness: 30 },
+  };
+}
+
+/**
+ * ทำค่าเป้าให้เป็นช่วงมาตรฐาน { min, max }
+ *   number n            -> { min:n, max:n }
+ *   { min }             -> { min, max:min }
+ *   { min, max:null }   -> { min, max:null }  (ไม่มีเพดาน)
+ *   { min, max }        -> ตามนั้น
+ */
+function normalizeBand(value) {
+  if (value == null) return { min: 0, max: 0 };
+  if (typeof value === 'number') return { min: value, max: value };
+  const min = Number.isFinite(value.min) ? value.min : 0;
+  const max = value.max === null ? null : (Number.isFinite(value.max) ? value.max : min);
+  return { min, max };
+}
+
+/** รวม rules ที่ผู้ใช้ให้มาทับค่าเริ่มต้น (deep เฉพาะ target/weights/overrides) */
+function mergeRules(partial = {}) {
+  const base = defaultRules();
+  const merged = { ...base, ...partial };
+
+  merged.activeShifts = [...(partial.activeShifts || base.activeShifts)];
+
+  const rawTarget = { ...base.target, ...(partial.target || {}) };
+  merged.target = {};
+  for (const s of SHIFT_VALUES) merged.target[s] = normalizeBand(rawTarget[s]);
+
+  merged.targetOverrides = (partial.targetOverrides || base.targetOverrides).map((o) => {
+    // รองรับรูปแบบเก่า { ..., target: n }
+    const band = 'target' in o ? normalizeBand(o.target) : normalizeBand({ min: o.min, max: o.max });
+    const out = { shift: o.shift, min: band.min, max: band.max };
+    if (o.weekday != null) out.weekday = o.weekday;
+    if (o.day != null) out.day = Number(o.day);
+    return out;
+  });
+
+  merged.weights = { ...base.weights, ...(partial.weights || {}) };
+  merged.allowedDoubles = [...(partial.allowedDoubles || base.allowedDoubles)];
+  return merged;
+}
+
+function isShiftActive(rules, shift) {
+  return rules.activeShifts.includes(shift);
+}
+
+/** parse 'ช+บ' → ['ช','บ'] (เรียงตาม ROTATION_ORDER) */
+function parseDoublePattern(pattern) {
+  const parts = String(pattern).split('+').map((p) => p.trim());
+  for (const p of parts) {
+    if (!SHIFT_VALUES.includes(p)) throw new Error(`รูปแบบกะ 2 กะ/วัน ไม่ถูกต้อง: "${pattern}"`);
+  }
+  return [...parts].sort((a, b) => ROTATION_ORDER.indexOf(a) - ROTATION_ORDER.indexOf(b));
+}
+
+/** ['ช','บ'] → 'ช+บ' (เรียงตาม ROTATION_ORDER) */
+function formatDoublePattern(shifts) {
+  return [...shifts].sort((a, b) => ROTATION_ORDER.indexOf(a) - ROTATION_ORDER.indexOf(b)).join('+');
+}
+
+function isDoubleAllowed(rules, shifts) {
+  if (shifts.length < 2) return true;
+  const key = formatDoublePattern(shifts);
+  return rules.allowedDoubles.some((p) => formatDoublePattern(parseDoublePattern(p)) === key);
+}
+
+/**
+ * ช่วงจำนวนคนของกะหนึ่งในวันหนึ่ง โดยคิด targetOverrides
+ * ลำดับ: ค่าฐาน → override ตามวันในสัปดาห์ → override ตามเลขวันที่ (เลขวันที่ชนะ)
+ * กะที่ปิด (ไม่อยู่ใน activeShifts) → { min:0, max:0 }
+ * @returns {{min:number, max:number|null}}
+ */
+function bandForDay(roster, rules, dayIndex, shift) {
+  if (!isShiftActive(rules, shift)) return { min: 0, max: 0 };
+  let band = { ...rules.target[shift] };
+  const day1 = dayIndex + 1;
+
+  for (const ov of rules.targetOverrides) {
+    if (ov.shift !== shift) continue;
+    if (ov.weekday != null && weekdayIndex(ov.weekday) === weekdayIndexForDay(roster, dayIndex)) {
+      band = { min: ov.min, max: ov.max };
+    }
+  }
+  for (const ov of rules.targetOverrides) {
+    if (ov.shift !== shift) continue;
+    if (ov.day != null && Number(ov.day) === day1) {
+      band = { min: ov.min, max: ov.max };
+    }
+  }
+  return band;
+}
+
+/** เป้าขั้นต่ำของกะในวันนั้น (ใช้บ่อยใน analyze) */
+function minStaffForDay(roster, rules, dayIndex, shift) {
+  return bandForDay(roster, rules, dayIndex, shift).min;
+}
+
+/** ผลรวมเป้าขั้นต่ำทุกกะทั้งเดือน = slotsNeeded */
+function totalSlotsNeeded(roster, rules) {
+  let total = 0;
+  for (let d = 0; d < roster.days; d++) {
+    for (const s of rules.activeShifts) total += bandForDay(roster, rules, d, s).min;
+  }
+  return total;
+}
+
+
+// ============================================================================
+// io.js — อ่าน/เขียนไฟล์บันทึกงาน
+//
+// รูปแบบไฟล์: คีย์เป็น "เลขวันที่" เสมอ (1-based) — ห้ามลิสต์เรียงตามตำแหน่ง
+//
+//   {
+//     "days": 30,
+//     "firstWeekday": "อังคาร",
+//     "rules": { ... },                 // ไม่บังคับ (ไม่มี = ใช้ค่าเริ่มต้น)
+//     "staff": [
+//       { "name": "พยาบาล A",
+//         "locked": { "1":"บ", "9":"R", "19":"ช+บ" },   // ตั้งค่า + ล็อก
+//         "filled": { "3":"ด" } }                        // ตั้งค่า ไม่ล็อก (ไม่บังคับ)
+//     ]
+//   }
+//
+// token ของช่อง:  "ช" | "บ" | "ด" | "ช+บ" (ขึ้น 2 กะ/วัน) | "R" | "O" | "V" | "T"
+// วันที่ไม่ระบุ = ช่องว่าง
+// ============================================================================
+
+
+
+// ---------------------------------------------------------------------------
+// TOKEN <-> CELL
+// ---------------------------------------------------------------------------
+
+/** "ช" / "ช+บ" / "R" → { shifts, off }  (โยน error ถ้า token เพี้ยน) */
+function parseCellToken(token) {
+  const t = String(token).trim();
+  if (t === '') throw new Error('token ว่าง');
+
+  if (OFF_VALUES.includes(t)) {
+    return { shifts: [], off: t };
+  }
+  if (t.includes('+')) {
+    return { shifts: parseDoublePattern(t), off: null };
+  }
+  if (SHIFT_VALUES.includes(t)) {
+    return { shifts: [t], off: null };
+  }
+  // 2 กะ/วัน แบบเขียนติดกัน เช่น "ชบ" (แบบในเอกสารโรงพยาบาล)
+  if ([...t].length === 2 && [...t].every((ch) => SHIFT_VALUES.includes(ch))) {
+    return { shifts: parseDoublePattern([...t].join('+')), off: null };
+  }
+  throw new Error(`token ไม่รู้จัก: "${token}" (ต้องเป็น ช/บ/ด/ช+บ/R/O/V/T)`);
+}
+
+/** cell → token string หรือ null ถ้าช่องว่าง */
+function cellToToken(cell) {
+  if (cell.shifts.length >= 2) return formatDoublePattern(cell.shifts);
+  if (cell.shifts.length === 1) return cell.shifts[0];
+  if (cell.off !== null) return cell.off;
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// PARSE
+// ---------------------------------------------------------------------------
+
+/**
+ * อ่าน doc (object หรือ JSON string) → { roster, rules, warnings }
+ * @param {object|string} input
+ * @param {{strict?:boolean}} [opts]  strict=true จะโยน error แทนการเก็บ warning
+ */
+function parseRoster(input, opts = {}) {
+  const strict = !!opts.strict;
+  const doc = typeof input === 'string' ? JSON.parse(input) : input;
+  const warnings = [];
+
+  const fail = (msg) => {
+    if (strict) throw new Error(msg);
+    warnings.push(msg);
+  };
+
+  if (!doc || typeof doc !== 'object') throw new Error('ไฟล์บันทึกไม่ใช่ object');
+  if (!Number.isInteger(doc.days)) throw new Error('ไฟล์บันทึกต้องมี "days" เป็นจำนวนเต็ม');
+  if (doc.firstWeekday == null) throw new Error('ไฟล์บันทึกต้องมี "firstWeekday"');
+
+  const rules = mergeRules(doc.rules || {});
+  const roster = makeRoster({
+    days: doc.days,
+    firstWeekday: doc.firstWeekday,
+    year: doc.year ?? null,
+    month: doc.month ?? null,
+  });
+
+  const staffList = Array.isArray(doc.staff) ? doc.staff : [];
+  staffList.forEach((entry, si) => {
+    if (!entry || typeof entry !== 'object') {
+      fail(`staff[${si}] ไม่ใช่ object — ข้าม`);
+      return;
+    }
+    const label = entry.name || `staff[${si}]`;
+    const staffIndex = roster.staff.length;
+    addStaff(roster, {
+      id: entry.id,
+      name: entry.name || `พนักงาน ${si + 1}`,
+      role: entry.role || '',
+      team: entry.team || '',
+      teamColor: entry.teamColor || '',
+      allow: (Array.isArray(entry.allow) ? entry.allow : []).filter((t) => ALLOW_TOKENS.includes(t)),
+    });
+
+    applyDayDict(roster, staffIndex, entry.locked, true, label, doc.days, fail);
+    applyDayDict(roster, staffIndex, entry.filled, false, label, doc.days, fail);
+  });
+
+  return { roster, rules, warnings };
+}
+
+function applyDayDict(roster, staffIndex, dict, locked, label, days, fail) {
+  if (dict == null) return;
+  if (typeof dict !== 'object') {
+    fail(`${label}: ฟิลด์ ${locked ? 'locked' : 'filled'} ไม่ใช่ object — ข้าม`);
+    return;
+  }
+  for (const [dayKey, token] of Object.entries(dict)) {
+    const dayNum = Number(dayKey);
+    if (!Number.isInteger(dayNum) || dayNum < 1 || dayNum > days) {
+      fail(`${label}: เลขวันที่ "${dayKey}" นอกช่วง 1..${days} — ข้าม`);
+      continue;
+    }
+    const dayIndex = dayNum - 1;
+    const cell = roster.grid[staffIndex][dayIndex];
+
+    if (cell.shifts.length > 0 || cell.off !== null) {
+      // ช่องนี้ถูกกำหนดไปแล้ว (locked มาก่อน filled) — locked ชนะ
+      if (locked) {
+        fail(`${label}: วันที่ ${dayNum} ซ้ำใน locked — ใช้ค่าหลัง`);
+      } else {
+        fail(`${label}: วันที่ ${dayNum} อยู่ทั้ง locked และ filled — คง locked ไว้`);
+        continue;
+      }
+    }
+
+    let parsed;
+    try {
+      parsed = parseCellToken(token);
+    } catch (err) {
+      fail(`${label}: วันที่ ${dayNum} — ${err.message}`);
+      continue;
+    }
+
+    if (parsed.off !== null) setCellOff(cell, parsed.off);
+    else setCellShifts(cell, parsed.shifts);
+    cell.locked = locked;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// SERIALIZE
+// ---------------------------------------------------------------------------
+
+/**
+ * roster (+ rules) → plain object พร้อม JSON.stringify
+ * เขียน `locked` เสมอ, `filled` เฉพาะเมื่อมีช่องที่เติมแล้วไม่ล็อก
+ */
+function serializeRoster(roster, rules = null) {
+  const doc = {
+    days: roster.days,
+    firstWeekday: roster.firstWeekday,
+  };
+  if (roster.year != null) doc.year = roster.year;
+  if (roster.month != null) doc.month = roster.month;
+  if (rules) doc.rules = rules;
+
+  doc.staff = roster.staff.map((s, si) => {
+    const entry = { name: s.name };
+    if (s.role) entry.role = s.role;
+    if (s.team) entry.team = s.team;
+    if (s.teamColor) entry.teamColor = s.teamColor;
+    if (s.allow && s.allow.length) entry.allow = [...s.allow];
+
+    const locked = {};
+    const filled = {};
+    roster.grid[si].forEach((cell, di) => {
+      const token = cellToToken(cell);
+      if (token == null) return;
+      (cell.locked ? locked : filled)[String(di + 1)] = token;
+    });
+    entry.locked = locked;
+    if (Object.keys(filled).length > 0) entry.filled = filled;
+    return entry;
+  });
+
+  return doc;
+}
+
+/** helper: serialize แล้ว stringify สวย ๆ สำหรับดาวน์โหลด */
+function toJSONString(roster, rules = null) {
+  return JSON.stringify(serializeRoster(roster, rules), null, 2);
+}
+
+
+// ============================================================================
+// analyze.js — วิเคราะห์ตารางเวร
+//
+// JS บริสุทธิ์ ห้ามแตะ DOM (ต้อง import ด้วย node ได้ตรง ๆ)
+//
+// รับ roster (จาก model.js) + rules (ผ่าน mergeRules มาแล้ว) แล้วคืน object เดียว
+// ที่ตอบ 3 คำถาม:
+//   1. feasibility — ตารางนี้ "มีทางจัดให้ครบ" ไหม (slot ที่ต้องการ vs วันว่างที่มี)
+//   2. coverage    — แต่ละกะแต่ละวันตอนนี้คนพอ/ขาด/เกิน เท่าไร
+//   3. violations  — กฎที่ "ถูกละเมิดแล้ว" จากช่องที่ล็อก/เติมไว้
+//
+// ทุกค่า `day` ในผลลัพธ์เป็นเลขวันที่ 1-based (ตรงกับไฟล์บันทึกและหน้าจอ)
+//
+// หมายเหตุสำคัญ: ดต่อเช้า (night→morning) นับ `ด` ที่อยู่ในกะ 2 กะ/วัน (เช่น บ+ด) ด้วย —
+//   ถ้าวัน N มี ด และวัน N+1 มี ช (กะเดียวหรือรวมอยู่ใน ช+บ / ช+ด) = ผิดกฎ
+// ============================================================================
+
+
+
+// ---------------------------------------------------------------------------
+// helper ระดับช่อง
+// ---------------------------------------------------------------------------
+
+/** ช่องนี้มีกะ `shift` ไหม (นับกะที่รวมอยู่ใน ช+บ / บ+ด / ช+ด ด้วย) */
+function hasShift(cell, shift) {
+  return cell.shifts.includes(shift);
+}
+
+/** จำนวน slot ที่ช่องนี้กิน: กะเดียว = 1, 2 กะ/วัน = 2, หยุด/ว่าง = 0 */
+function slotsInCell(cell) {
+  return cell.shifts.length;
+}
+
+/** วันนี้ "ไม่พร้อมทำงาน" (หยุด/ลา/อบรม) */
+function isAway(cell) {
+  return isRest(cell) || isLeave(cell) || isTraining(cell);
+}
+
+// ---------------------------------------------------------------------------
+// analyze
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {object} roster  — จาก makeRoster/parseRoster
+ * @param {object} rules   — จาก mergeRules
+ * @param {{manyOffThreshold?:number}} [opts]
+ */
+function analyze(roster, rules, opts = {}) {
+  const manyOffThreshold = opts.manyOffThreshold ?? 3;
+  const D = roster.days;
+  const N = roster.staff.length;
+  const activeShifts = rules.activeShifts.filter((s) => isShiftActive(rules, s));
+
+  // ---- slot ที่ทั้งเดือนต้องการ (ต่ำสุด / เพดานรวม) ----
+  let slotsNeeded = 0;
+  let slotsMax = 0;
+  let slotsMaxUnbounded = false;
+  for (let d = 0; d < D; d++) {
+    for (const s of activeShifts) {
+      const band = bandForDay(roster, rules, d, s);
+      slotsNeeded += band.min;
+      if (band.max === null) slotsMaxUnbounded = true;
+      else slotsMax += band.max;
+    }
+  }
+
+  // ---- เดินกริดทีละคน: สถิติ + run-length ----
+  let assignedSlots = 0;
+  let emptyDays = 0;
+  let restDays = 0;
+  let leaveDays = 0;
+  let trainingDays = 0;
+
+  const perPerson = roster.staff.map((s) => ({
+    staffId: s.id,
+    name: s.name,
+    team: s.team || '',
+    work: 0,        // จำนวน "วันที่ขึ้นเวร" (2 กะ/วัน นับ 1 วัน)
+    byShift: { [SHIFT.MORNING]: 0, [SHIFT.AFTERNOON]: 0, [SHIFT.NIGHT]: 0 }, // นับกะ (รวมที่อยู่ใน 2 กะ/วัน)
+    doubles: 0,
+    nights: 0,
+    weekends: 0,    // วันหยุดสุดสัปดาห์ที่ต้องขึ้นเวร
+    rest: 0,        // R + O
+    leave: 0,       // V
+    training: 0,    // T
+    empty: 0,
+    offCounted: 0,  // วันที่นับเข้าโควตาหยุด
+    maxConsecutiveWork: 0,
+    maxConsecutiveNights: 0,
+    maxConsecutiveOff: 0,
+  }));
+
+  for (let i = 0; i < N; i++) {
+    const row = roster.grid[i];
+    const p = perPerson[i];
+    let runWork = 0;
+    let runNight = 0;
+    let runOff = 0;
+
+    for (let d = 0; d < D; d++) {
+      const cell = row[d];
+      const n = slotsInCell(cell);
+      assignedSlots += n;
+
+      if (n > 0) {
+        p.work += 1;
+        if (n >= 2) p.doubles += 1;
+        for (const sh of cell.shifts) p.byShift[sh] += 1;
+        if (hasShift(cell, SHIFT.NIGHT)) p.nights += 1;
+        if (isWeekend(roster, d)) p.weekends += 1;
+        runWork += 1;
+        if (runWork > p.maxConsecutiveWork) p.maxConsecutiveWork = runWork;
+      } else {
+        runWork = 0;
+      }
+
+      if (hasShift(cell, SHIFT.NIGHT)) {
+        runNight += 1;
+        if (runNight > p.maxConsecutiveNights) p.maxConsecutiveNights = runNight;
+      } else {
+        runNight = 0;
+      }
+
+      if (isRest(cell)) {
+        p.rest += 1;
+        restDays += 1;
+        runOff += 1;
+        if (runOff > p.maxConsecutiveOff) p.maxConsecutiveOff = runOff;
+      } else {
+        runOff = 0;
+      }
+
+      if (isLeave(cell)) { p.leave += 1; leaveDays += 1; }
+      if (isTraining(cell)) { p.training += 1; trainingDays += 1; }
+      if (isEmpty(cell)) { p.empty += 1; emptyDays += 1; }
+    }
+
+    p.offCounted = p.rest + (rules.countLeaveInQuota ? p.leave : 0);
+  }
+
+  // ---- coverage รายวัน/รายกะ + วันที่คนหยุดเยอะ ----
+  const coverage = [];
+  const gaps = [];
+  const daysManyOff = [];
+
+  for (let d = 0; d < D; d++) {
+    let offToday = 0;
+    for (let i = 0; i < N; i++) {
+      const cell = roster.grid[i][d];
+      if (isRest(cell) || isLeave(cell)) offToday += 1;
+    }
+    if (offToday >= manyOffThreshold) {
+      daysManyOff.push({ day: d + 1, off: offToday, available: N - offToday });
+    }
+
+    for (const s of activeShifts) {
+      const band = bandForDay(roster, rules, d, s);
+      let assigned = 0;
+      for (let i = 0; i < N; i++) {
+        if (hasShift(roster.grid[i][d], s)) assigned += 1;
+      }
+      let status = 'ok';
+      if (assigned < band.min) status = 'under';
+      else if (band.max !== null && assigned > band.max) status = 'over';
+
+      const entry = { day: d + 1, shift: s, assigned, min: band.min, max: band.max, status };
+      coverage.push(entry);
+      if (status !== 'ok') gaps.push(entry);
+    }
+  }
+
+  // ---- violations ----
+  const violations = [];
+  const add = (v) => violations.push(v);
+
+  for (let i = 0; i < N; i++) {
+    const row = roster.grid[i];
+    const p = perPerson[i];
+    const who = { staffId: roster.staff[i].id, name: roster.staff[i].name };
+
+    // ด→ช — นับ ด/ช ที่รวมอยู่ในกะ 2 กะ/วันด้วย
+    const n2m = [];
+    for (let d = 0; d < D - 1; d++) {
+      if (hasShift(row[d], SHIFT.NIGHT) && hasShift(row[d + 1], SHIFT.MORNING)) n2m.push(d);
+    }
+    if (n2m.length > (rules.maxNightToMorning || 0)) {
+      for (const d of n2m) {
+        add({
+          type: 'nightToMorning', severity: 'error', ...who, day: d + 1,
+          message: `${who.name}: ด (วันที่ ${d + 1}) → ช (วันที่ ${d + 2})`,
+        });
+      }
+    }
+
+    // กะ 2 กะ/วัน ที่ไม่อยู่ในลิสต์ allowedDoubles
+    for (let d = 0; d < D; d++) {
+      const cell = row[d];
+      if (cell.shifts.length >= 2 && !isDoubleAllowed(rules, cell.shifts)) {
+        const pattern = formatDoublePattern(cell.shifts);
+        add({
+          type: 'doubleNotAllowed', severity: 'error', ...who, day: d + 1, pattern,
+          message: `${who.name}: ${pattern} ไม่อนุญาต (วันที่ ${d + 1})`,
+        });
+      }
+    }
+
+    // กะที่ไม่ตรงเงื่อนไขรายบุคคล (staff.allow)
+    for (let d = 0; d < D; d++) {
+      const cell = row[d];
+      if (cell.shifts.length > 0 && !staffAllowsShift(roster.staff[i], cell.shifts)) {
+        const pattern = formatDoublePattern(cell.shifts);
+        add({
+          type: 'shiftNotAllowed', severity: 'error', ...who, day: d + 1, pattern,
+          message: `${who.name}: ${pattern} (วันที่ ${d + 1}) ไม่ใช่กะที่ทำได้ (จำกัด: ${roster.staff[i].allow.join(' ')})`,
+        });
+      }
+    }
+
+    // ด ติดกันเกินเพดาน
+    if (p.maxConsecutiveNights > rules.maxConsecutiveNights) {
+      add({
+        type: 'consecutiveNights', severity: 'error', ...who,
+        count: p.maxConsecutiveNights, limit: rules.maxConsecutiveNights,
+        message: `${who.name}: ด ติดกัน ${p.maxConsecutiveNights} วัน (เพดาน ${rules.maxConsecutiveNights})`,
+      });
+    }
+
+    // ช/บ/ด ติดกันเกินเพดาน
+    if (p.maxConsecutiveWork > rules.maxConsecutiveWork) {
+      add({
+        type: 'consecutiveWork', severity: 'warn', ...who,
+        count: p.maxConsecutiveWork, limit: rules.maxConsecutiveWork,
+        message: `${who.name}: ช/บ/ด ติดกัน ${p.maxConsecutiveWork} วัน (เพดาน ${rules.maxConsecutiveWork})`,
+      });
+    }
+
+    // R/O ติดกันเกินเพดาน
+    if (p.maxConsecutiveOff > rules.maxConsecutiveOff) {
+      add({
+        type: 'consecutiveOff', severity: 'warn', ...who,
+        count: p.maxConsecutiveOff, limit: rules.maxConsecutiveOff,
+        message: `${who.name}: R/O ติดกัน ${p.maxConsecutiveOff} วัน (เพดาน ${rules.maxConsecutiveOff})`,
+      });
+    }
+
+    // ขึ้น 2 กะ/วัน เยอะเกินเพดานต่อคน
+    if (p.doubles > rules.maxDoublesPerPerson) {
+      add({
+        type: 'tooManyDoubles', severity: 'warn', ...who,
+        count: p.doubles, limit: rules.maxDoublesPerPerson,
+        message: `${who.name}: ขึ้น 2 กะ/วัน ${p.doubles} ครั้ง (เพดาน ${rules.maxDoublesPerPerson})`,
+      });
+    }
+
+    // ระยะห่างระหว่างวันที่ขึ้น 2 กะ/วัน สองครั้งติดกัน
+    const dblDays = [];
+    for (let d = 0; d < D; d++) if (row[d].shifts.length >= 2) dblDays.push(d);
+    for (let k = 1; k < dblDays.length; k++) {
+      const gap = dblDays[k] - dblDays[k - 1];
+      if (gap < rules.minGapBetweenDoubles) {
+        add({
+          type: 'doubleGapTooSmall', severity: 'warn', ...who,
+          day: dblDays[k - 1] + 1, nextDay: dblDays[k] + 1, gap, limit: rules.minGapBetweenDoubles,
+          message: `${who.name}: ขึ้น 2 กะ/วัน วันที่ ${dblDays[k - 1] + 1} กับ ${dblDays[k] + 1} ห่างกัน ${gap} วัน (ต้อง ≥ ${rules.minGapBetweenDoubles})`,
+        });
+      }
+    }
+
+    // วันหยุด O+R เทียบโควตา — ยกเว้นคนที่ "ล็อก" วันหยุดไว้เกินโควตาอยู่แล้ว
+    {
+      let lockedRest = 0;
+      let emptyCells = 0;
+      for (let d = 0; d < D; d++) {
+        const cell = row[d];
+        if (cell.locked && isRest(cell)) lockedRest += 1;
+        if (isEmpty(cell)) emptyCells += 1;
+      }
+      const total = p.offCounted;
+      const quota = rules.offQuota;
+      const kinds = rules.countLeaveInQuota ? 'R+O+V' : 'R+O';
+      if (lockedRest > quota) {
+        add({
+          type: 'restLockedOver', severity: 'warn', ...who,
+          count: lockedRest, quota,
+          message: `${who.name}: ล็อกวันหยุดไว้ ${lockedRest} วัน (เกินโควตา ${quota}) — ยกเว้นให้`,
+        });
+      } else if (total > quota) {
+        add({
+          type: 'restOver', severity: 'error', ...who,
+          count: total, quota,
+          message: `${who.name}: ${kinds} ${total} วัน เกินโควตา ${quota}`,
+        });
+      } else if (rules.offQuotaMode === 'exact' && total < quota && emptyCells === 0) {
+        add({
+          type: 'restShort', severity: 'error', ...who,
+          count: total, quota,
+          message: `${who.name}: ${kinds} ${total} วัน ขาดโควตา ${quota}`,
+        });
+      }
+    }
+  }
+
+  // coverage ที่ "เกินเพดาน" ตอนนี้ = คนถูกล็อกไว้เกิน → ละเมิด
+  for (const g of gaps) {
+    if (g.status === 'over') {
+      add({
+        type: 'coverageOver', severity: 'error',
+        day: g.day, shift: g.shift, count: g.assigned, max: g.max,
+        message: `วันที่ ${g.day} ${g.shift}: ${g.assigned} คน (เพดาน ${g.max})`,
+      });
+    }
+  }
+
+  // ---- feasibility ----
+  const doublesExisting = perPerson.reduce((a, p) => a + p.doubles, 0);
+  const workDaysAvailable = N * D - restDays - leaveDays - trainingDays;
+  // เติมช่องว่างทุกช่องเป็นกะเดียว จะได้ slot รวมเท่านี้
+  const capacitySingles = assignedSlots + emptyDays;
+  const doublesNeeded = Math.max(0, slotsNeeded - capacitySingles);
+  const doubleCapacity = perPerson.reduce(
+    (a, p) => a + Math.max(0, rules.maxDoublesPerPerson - p.doubles), 0,
+  );
+
+  const reasons = [];
+  if (N === 0) reasons.push('ไม่มีพนักงาน');
+  if (doublesNeeded > doubleCapacity) {
+    reasons.push(`ต้องเพิ่มวันขึ้น 2 กะ/วัน อีก ${doublesNeeded} ครั้ง แต่เพดานรวมรับได้อีก ${doubleCapacity}`);
+  }
+  if (!slotsMaxUnbounded && assignedSlots > slotsMax) {
+    reasons.push(`กะที่ล็อก/เติมไว้ (${assignedSlots}) เกินเพดานรวม (${slotsMax})`);
+  }
+
+  const feasibility = {
+    slotsNeeded,
+    slotsMax: slotsMaxUnbounded ? null : slotsMax,
+    assignedSlots,
+    workDaysAvailable,
+    emptyDays,
+    restDays,
+    leaveDays,
+    trainingDays,
+    doublesExisting,
+    doublesNeeded,
+    doubleCapacity,
+    avgDoublesPerPerson: N ? Number((doublesNeeded / N).toFixed(2)) : 0,
+    feasible: reasons.length === 0,
+    reasons,
+  };
+
+  return {
+    days: D,
+    staffCount: N,
+    activeShifts,
+    feasibility,
+    coverage,
+    gaps,
+    daysManyOff,
+    violations,
+    perPerson,
+    summary: {
+      errors: violations.filter((v) => v.severity === 'error').length,
+      warnings: violations.filter((v) => v.severity === 'warn').length,
+      under: gaps.filter((g) => g.status === 'under').length,
+      over: gaps.filter((g) => g.status === 'over').length,
+    },
+  };
+}
+
+
+// ============================================================================
+// solver.js — จัดตารางเวรอัตโนมัติ (เติมช่องว่างให้ครอบคลุม)
+//
+// JS บริสุทธิ์ ห้ามแตะ DOM
+//
+// วิธี:
+//   1) constructive — ไล่เติมกะให้ถึงขั้นต่ำของแต่ละกะแต่ละวัน (ด ก่อน แล้ว ช, บ)
+//   2) polish — สุ่มปรับช่องที่ไม่ล็อก รับเฉพาะที่คะแนนดีขึ้น (hill-climb)
+//   3) เติมช่องว่างที่เหลือเป็น O
+//
+// กติกาที่ "ห้ามละเมิดเด็ดขาด" ระหว่างจัด:
+//   - ไม่แตะช่องที่ล็อก / ลา (V) / อบรม (T)
+//   - ด (วันที่ N) → ช (วันที่ N+1) ห้าม  (นับ ด/ช ที่รวมอยู่ในกะ 2 กะ/วันด้วย)
+//   - กะ 2 กะ/วัน ต้องอยู่ใน allowedDoubles
+//   - ห้ามเกินเพดานคนต่อกะ (band.max), maxConsecutiveNights, maxConsecutiveWork,
+//     maxDoublesPerPerson, minGapBetweenDoubles
+// ============================================================================
+
+
+
+// ลำดับความสำคัญตอนเติม: ด ยากสุด → ช → บ
+const FILL_ORDER = [SHIFT.NIGHT, SHIFT.MORNING, SHIFT.AFTERNOON];
+
+// ---------------------------------------------------------------------------
+// RNG (seeded, ผลซ้ำได้)
+// ---------------------------------------------------------------------------
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const pick = (rnd, arr) => arr[(rnd() * arr.length) | 0];
+
+// ---------------------------------------------------------------------------
+// helper ระดับช่อง (raw — ไม่ validate, เร็ว)
+// ---------------------------------------------------------------------------
+function sortShifts(arr) {
+  return [...arr].sort((x, y) => ROTATION_ORDER.indexOf(x) - ROTATION_ORDER.indexOf(y));
+}
+function setShifts(cell, arr) { cell.shifts = sortShifts(arr); cell.off = null; }
+function setOff(cell, off) { cell.shifts = []; cell.off = off; }
+function clearCell(cell) { cell.shifts = []; cell.off = null; }
+function snap(cell) { return { shifts: [...cell.shifts], off: cell.off, locked: cell.locked }; }
+function restore(cell, s) { cell.shifts = [...s.shifts]; cell.off = s.off; cell.locked = s.locked; }
+
+function isFixed(cell) {
+  return cell.locked || cell.off === OFF.LEAVE || cell.off === OFF.TRAINING;
+}
+function assignedCount(roster, d, shift) {
+  let n = 0;
+  for (const row of roster.grid) if (row[d].shifts.includes(shift)) n++;
+  return n;
+}
+function personDoubles(row, exceptDay) {
+  const days = [];
+  for (let k = 0; k < row.length; k++) if (k !== exceptDay && row[k].shifts.length >= 2) days.push(k);
+  return days;
+}
+
+// ---------------------------------------------------------------------------
+// ตรวจกติกา "ห้ามเด็ดขาด" ของช่อง (i,d) หลังใส่ค่าแล้ว
+// ---------------------------------------------------------------------------
+function cellHardOK(roster, rules, i, d) {
+  const row = roster.grid[i];
+  const cell = row[d];
+  if (cell.shifts.length === 0) return true;
+  const last = row.length - 1;
+
+  // เงื่อนไขรายบุคคล
+  if (!staffAllowsShift(roster.staff[i], cell.shifts)) return false;
+
+  if (cell.shifts.length >= 2) {
+    if (!isDoubleAllowed(rules, cell.shifts)) return false;
+    const others = personDoubles(row, d);
+    if (others.length + 1 > rules.maxDoublesPerPerson) return false;
+    for (const k of others) if (Math.abs(k - d) < rules.minGapBetweenDoubles) return false;
+  }
+
+  // ด→ช
+  if (cell.shifts.includes(SHIFT.MORNING) && d > 0 && row[d - 1].shifts.includes(SHIFT.NIGHT)) return false;
+  if (cell.shifts.includes(SHIFT.NIGHT) && d < last && row[d + 1].shifts.includes(SHIFT.MORNING)) return false;
+
+  // ด ติดกัน
+  if (cell.shifts.includes(SHIFT.NIGHT)) {
+    let run = 1;
+    for (let k = d - 1; k >= 0 && row[k].shifts.includes(SHIFT.NIGHT); k--) run++;
+    for (let k = d + 1; k <= last && row[k].shifts.includes(SHIFT.NIGHT); k++) run++;
+    if (run > rules.maxConsecutiveNights) return false;
+  }
+
+  // ช/บ/ด ติดกัน
+  {
+    let run = 1;
+    for (let k = d - 1; k >= 0 && row[k].shifts.length > 0; k--) run++;
+    for (let k = d + 1; k <= last && row[k].shifts.length > 0; k++) run++;
+    if (run > rules.maxConsecutiveWork) return false;
+  }
+  return true;
+}
+
+function coverageMaxOK(roster, rules, d) {
+  for (const s of rules.activeShifts) {
+    if (!isShiftActive(rules, s)) continue;
+    const band = bandForDay(roster, rules, d, s);
+    if (band.max != null && assignedCount(roster, d, s) > band.max) return false;
+  }
+  return true;
+}
+
+/** ลองใส่ shifts ที่ช่อง (i,d) — คืน true ถ้าผ่านกติกาห้าม (คงค่าไว้), ไม่ผ่าน = คืนค่าเดิม */
+function tryPut(roster, rules, i, d, shifts) {
+  const cell = roster.grid[i][d];
+  if (isFixed(cell)) return false;
+  const sv = snap(cell);
+  if (shifts.length === 0) setOff(cell, OFF.FILLED);
+  else setShifts(cell, shifts);
+  cell.locked = false;
+  const last = roster.days - 1;
+  const ok = cellHardOK(roster, rules, i, d)
+    && coverageMaxOK(roster, rules, d)
+    && (d <= 0 || cellHardOK(roster, rules, i, d - 1))
+    && (d >= last || cellHardOK(roster, rules, i, d + 1));
+  if (!ok) { restore(cell, sv); return false; }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// คะแนน (ยิ่งน้อยยิ่งดี)
+// ---------------------------------------------------------------------------
+function spread(arr) {
+  if (arr.length < 2) return 0;
+  return Math.max(...arr) - Math.min(...arr);
+}
+
+function cost(roster, rules) {
+  const D = roster.days;
+  const N = roster.staff.length;
+  const W = rules.weights;
+  const active = rules.activeShifts.filter((s) => isShiftActive(rules, s));
+
+  let coverage = 0;
+  let safety = 0;
+  let workload = 0;
+
+  for (let d = 0; d < D; d++) {
+    for (const s of active) {
+      const band = bandForDay(roster, rules, d, s);
+      const a = assignedCount(roster, d, s);
+      if (a < band.min) coverage += band.min - a;
+      if (band.max != null && a > band.max) coverage += (a - band.max) * 2;
+    }
+  }
+
+  const loads = [];
+  const nights = [];
+  const weekends = [];
+  let totalDoubles = 0;
+
+  for (let i = 0; i < N; i++) {
+    const row = roster.grid[i];
+    let w = 0; let n = 0; let we = 0; let off = 0; let leave = 0; let db = 0;
+    let runW = 0; let runN = 0; let runO = 0;
+
+    for (let d = 0; d < D; d++) {
+      const cell = row[d];
+      const k = cell.shifts.length;
+      if (k > 0) {
+        w += k;
+        if (k >= 2) db++;
+        if (cell.shifts.includes(SHIFT.NIGHT)) n++;
+        if (isWeekend(roster, d)) we++;
+        runW++;
+        if (runW > rules.maxConsecutiveWork) safety += runW - rules.maxConsecutiveWork;
+        if (cell.shifts.includes(SHIFT.NIGHT)) {
+          runN++;
+          if (runN > rules.maxConsecutiveNights) safety += runN - rules.maxConsecutiveNights;
+        } else runN = 0;
+        runO = 0;
+        if (k >= 2 && !isDoubleAllowed(rules, cell.shifts)) safety += 5;
+        if (cell.shifts.includes(SHIFT.MORNING) && d > 0 && row[d - 1].shifts.includes(SHIFT.NIGHT)) safety += 10;
+      } else {
+        runW = 0; runN = 0;
+        if (cell.off === OFF.LOCKED || cell.off === OFF.FILLED) {
+          off++; runO++;
+          if (runO > rules.maxConsecutiveOff) workload += runO - rules.maxConsecutiveOff;
+        } else {
+          runO = 0;
+          if (cell.off === OFF.LEAVE) leave++;
+        }
+      }
+    }
+
+    if (db > rules.maxDoublesPerPerson) workload += (db - rules.maxDoublesPerPerson) * 3;
+    const quota = off + (rules.countLeaveInQuota ? leave : 0);
+    if (rules.offQuotaMode === 'exact') workload += Math.abs(quota - rules.offQuota);
+    else workload += Math.max(0, quota - rules.offQuota);
+
+    loads.push(w);
+    nights.push(n);
+    weekends.push(we);
+    totalDoubles += db;
+  }
+
+  const fairness = spread(loads) + spread(nights) * 0.5 + spread(weekends) * 0.5;
+  const total = safety * W.safety
+    + coverage * W.coverage
+    + workload * W.workload
+    + fairness * W.fairness
+    + totalDoubles * (W.workload * 0.4);
+
+  return { total, coverage, safety, workload, fairness, doubles: totalDoubles };
+}
+
+// ---------------------------------------------------------------------------
+// 1) constructive
+// ---------------------------------------------------------------------------
+function loadOf(row) {
+  let n = 0;
+  for (const c of row) n += c.shifts.length;
+  return n;
+}
+
+function constructive(R, rules, rnd) {
+  const D = R.days;
+  const N = R.staff.length;
+  const active = FILL_ORDER.filter((s) => isShiftActive(rules, s));
+
+  for (let pass = 0; pass < 2; pass++) {
+    for (let d = 0; d < D; d++) {
+      for (const s of active) {
+        const band = bandForDay(R, rules, d, s);
+        let guard = 0;
+        while (assignedCount(R, d, s) < band.min && guard++ < N * 2) {
+          // ผู้สมัคร: ช่องว่าง/O ก่อน แล้วค่อยเป็นกะ 2 กะ/วัน
+          const singles = [];
+          const doubles = [];
+          for (let i = 0; i < N; i++) {
+            const cell = R.grid[i][d];
+            if (isFixed(cell) || cell.shifts.includes(s) || cell.shifts.length >= 2) continue;
+            if (cell.shifts.length === 0) singles.push(i);
+            else doubles.push(i);
+          }
+          const orderBy = (list) => list
+            .map((i) => ({ i, k: loadOf(R.grid[i]) + rnd() * 0.5 }))
+            .sort((a, b) => a.k - b.k)
+            .map((x) => x.i);
+
+          let placed = false;
+          for (const i of orderBy(singles)) {
+            if (tryPut(R, rules, i, d, [s])) { placed = true; break; }
+          }
+          if (!placed) {
+            for (const i of orderBy(doubles)) {
+              const cur = R.grid[i][d].shifts[0];
+              if (tryPut(R, rules, i, d, [cur, s])) { placed = true; break; }
+            }
+          }
+          if (!placed) break;
+        }
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 2) polish (hill-climb)
+// ---------------------------------------------------------------------------
+function polish(R, rules, rnd, iterations) {
+  const D = R.days;
+  const N = R.staff.length;
+  const active = rules.activeShifts.filter((s) => isShiftActive(rules, s));
+  let curCost = cost(R, rules).total;
+  let best = cloneRoster(R);
+  let bestCost = curCost;
+
+  for (let it = 0; it < iterations; it++) {
+    // เป้าหมาย: 60% เล็งไปที่กะที่ยังขาด
+    let i; let d;
+    const sv = [];
+    const touched = [];
+
+    if (rnd() < 0.6) {
+      const shorts = [];
+      for (let dd = 0; dd < D; dd++) {
+        for (const s of active) {
+          const b = bandForDay(R, rules, dd, s);
+          if (assignedCount(R, dd, s) < b.min) shorts.push([dd, s]);
+        }
+      }
+      if (!shorts.length) continue;
+      const [dd, s] = pick(rnd, shorts);
+      d = dd;
+      const opts = [];
+      for (let ii = 0; ii < N; ii++) {
+        const c = R.grid[ii][d];
+        if (isFixed(c) || c.shifts.includes(s) || c.shifts.length >= 2) continue;
+        opts.push(ii);
+      }
+      if (!opts.length) continue;
+      i = pick(rnd, opts);
+      const cell = R.grid[i][d];
+      sv.push(snap(cell)); touched.push([i, d]);
+      const next = cell.shifts.length === 1 ? [cell.shifts[0], s] : [s];
+      setShifts(cell, next);
+      cell.locked = false;
+    } else {
+      i = (rnd() * N) | 0;
+      d = (rnd() * D) | 0;
+      const cell = R.grid[i][d];
+      if (isFixed(cell)) continue;
+      sv.push(snap(cell)); touched.push([i, d]);
+      const r = rnd();
+      if (r < 0.4) setShifts(cell, [pick(rnd, active)]);
+      else if (r < 0.7) setOff(cell, OFF.FILLED);
+      else if (r < 0.9 && cell.shifts.length === 1) {
+        const other = active.filter((x) => x !== cell.shifts[0]);
+        if (!other.length) { touched.pop(); sv.pop(); continue; }
+        setShifts(cell, [cell.shifts[0], pick(rnd, other)]);
+      } else clearCell(cell);
+    }
+
+    const last = D - 1;
+    const ok = cellHardOK(R, rules, i, d)
+      && coverageMaxOK(R, rules, d)
+      && (d <= 0 || cellHardOK(R, rules, i, d - 1))
+      && (d >= last || cellHardOK(R, rules, i, d + 1));
+
+    let accept = false;
+    if (ok) {
+      const c = cost(R, rules).total;
+      if (c <= curCost) { curCost = c; accept = true; if (c < bestCost) { bestCost = c; best = cloneRoster(R); } }
+    }
+    if (!accept) {
+      for (let t = touched.length - 1; t >= 0; t--) {
+        const [ti, td] = touched[t];
+        restore(R.grid[ti][td], sv[t]);
+      }
+    }
+  }
+  return { roster: best, cost: bestCost };
+}
+
+// ---------------------------------------------------------------------------
+// 3) จัดวันหยุด O+R ให้ตรงโควตา (ยกเว้นคนที่ล็อกหยุดไว้เกินอยู่แล้ว)
+//    - เติม O จนถึงโควตา
+//    - ช่องว่างที่เหลือ พยายามให้เป็นเวร (ถ้ากะยังไม่ถึงเพดาน) มิฉะนั้น O
+// ---------------------------------------------------------------------------
+function fillRest(R, rules) {
+  const active = rules.activeShifts.filter((s) => isShiftActive(rules, s));
+  const D = R.days;
+
+  for (let i = 0; i < R.staff.length; i++) {
+    const row = R.grid[i];
+    let lockedRest = 0;
+    let rest = 0;
+    let leave = 0;
+    const empties = [];
+    for (let d = 0; d < D; d++) {
+      const c = row[d];
+      if (c.off === OFF.LOCKED || c.off === OFF.FILLED) {
+        rest += 1;
+        if (c.locked) lockedRest += 1;
+      } else if (c.off === OFF.LEAVE) {
+        leave += 1;
+      } else if (c.off === null && c.shifts.length === 0 && !c.locked) {
+        empties.push(d);
+      }
+    }
+
+    // วันที่นับเข้าโควตาแล้ว (ให้ตรงกับ analyze: R+O และ V เมื่อ countLeaveInQuota)
+    const counted = rest + (rules.countLeaveInQuota ? leave : 0);
+    // exact = ต้องได้เท่าโควตาพอดี → เติม O ให้ถึง
+    // max   = โควตาเป็นเพดาน → ไม่ดันให้ถึง ปล่อยช่องว่างไว้ให้ลูปล่างลองจัดเวรก่อน
+    const target = rules.offQuotaMode === 'exact'
+      ? Math.max(lockedRest, rules.offQuota)
+      : lockedRest;
+    let need = target - counted;
+
+    // เติม O ให้ถึงโควตา
+    for (const d of empties) {
+      if (need <= 0) break;
+      row[d].off = OFF.FILLED;
+      need -= 1;
+    }
+
+    // ช่องว่างที่เหลือ → เวร (ดูดซับ capacity เข้า coverage) ไม่งั้น O
+    for (const d of empties) {
+      const c = row[d];
+      if (c.off !== null || c.shifts.length > 0) continue;
+      let placed = false;
+      for (const s of active) {
+        const band = bandForDay(R, rules, d, s);
+        if (band.max != null && assignedCount(R, d, s) >= band.max) continue;
+        const sv = snap(c);
+        setShifts(c, [s]);
+        const ok = cellHardOK(R, rules, i, d)
+          && (d <= 0 || cellHardOK(R, rules, i, d - 1))
+          && (d >= D - 1 || cellHardOK(R, rules, i, d + 1));
+        if (ok) { placed = true; break; }
+        restore(c, sv);
+      }
+      if (!placed) c.off = OFF.FILLED;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 4) เกลี่ยวันหยุด O+R ให้ทุกคนใกล้โควตา (ย้ายเวรจากคนหยุดน้อย → คนหยุดเยอะ)
+//    coverage ไม่เปลี่ยน เพราะเป็นการสลับเวรระหว่างคนในวันเดียวกัน
+// ---------------------------------------------------------------------------
+function balanceRest(R, rules) {
+  const D = R.days;
+  const N = R.staff.length;
+
+  const restTarget = (i) => {
+    let lr = 0;
+    for (const c of R.grid[i]) if (c.locked && (c.off === OFF.LOCKED || c.off === OFF.FILLED)) lr += 1;
+    return Math.max(lr, rules.offQuota);
+  };
+  const restCount = (i) => {
+    let n = 0;
+    for (const c of R.grid[i]) if (c.off === OFF.LOCKED || c.off === OFF.FILLED) n += 1;
+    return n;
+  };
+
+  const trySwap = (over, under) => {
+    for (let d = 0; d < D; d++) {
+      const co = R.grid[over][d];
+      const cu = R.grid[under][d];
+      if (co.locked || cu.locked) continue;
+      if (co.off !== OFF.FILLED) continue;      // over ต้องเป็น O ที่ระบบเติม
+      if (cu.shifts.length !== 1) continue;     // under ทำงานกะเดียว
+      const s = cu.shifts[0];
+      const svo = snap(co);
+      const svu = snap(cu);
+      setShifts(co, [s]); co.locked = false;
+      setOff(cu, OFF.FILLED); cu.locked = false;
+      const ok = cellHardOK(R, rules, over, d)
+        && (d <= 0 || cellHardOK(R, rules, over, d - 1))
+        && (d >= D - 1 || cellHardOK(R, rules, over, d + 1))
+        && (d <= 0 || cellHardOK(R, rules, under, d - 1))
+        && (d >= D - 1 || cellHardOK(R, rules, under, d + 1));
+      if (ok) return true;
+      restore(co, svo);
+      restore(cu, svu);
+    }
+    return false;
+  };
+
+  for (let guard = 0; guard < N * D; guard++) {
+    const overs = [];
+    const unders = [];
+    for (let i = 0; i < N; i++) {
+      const diff = restCount(i) - restTarget(i);
+      if (diff > 0) overs.push(i);
+      else if (diff < 0) unders.push(i);
+    }
+    if (!overs.length || !unders.length) break;
+
+    let moved = false;
+    for (const over of overs) {
+      for (const under of unders) {
+        if (trySwap(over, under)) { moved = true; break; }
+      }
+      if (moved) break;
+    }
+    if (!moved) break;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// solve
+// ---------------------------------------------------------------------------
+/**
+ * @param {object} roster
+ * @param {object} rules
+ * @param {{seed?:number, iterations?:number}} [opts]
+ * @returns {{roster:object, cost:object, filled:number, changed:number}}
+ */
+function solve(roster, rules, opts = {}) {
+  const rnd = mulberry32(opts.seed ?? 1);
+  const iterations = opts.iterations ?? 6000;
+  const R = cloneRoster(roster);
+  if (R.staff.length === 0) return { roster: R, cost: cost(R, rules), filled: 0, changed: 0 };
+
+  constructive(R, rules, rnd);
+  const polished = polish(R, rules, rnd, iterations);
+  const out = polished.roster;
+  fillRest(out, rules);
+  balanceRest(out, rules);
+
+  // นับช่องที่เปลี่ยนจากต้นฉบับ
+  let filled = 0;
+  let changed = 0;
+  for (let i = 0; i < roster.staff.length; i++) {
+    for (let d = 0; d < roster.days; d++) {
+      const a = roster.grid[i][d];
+      const b = out.grid[i][d];
+      const wasEmpty = a.shifts.length === 0 && a.off === null;
+      const tokA = a.shifts.join('+') || a.off || '';
+      const tokB = b.shifts.join('+') || b.off || '';
+      if (tokA !== tokB) { changed++; if (wasEmpty) filled++; }
+    }
+  }
+
+  return { roster: out, cost: cost(out, rules), filled, changed };
+}
+
+
+// ============================================================================
+// csv.js — นำเข้า/ส่งออก CSV (เปิด/บันทึกผ่าน Excel ได้ตรง ๆ)
+//
+// JS บริสุทธิ์ ห้ามแตะ DOM
+//
+// รูปแบบ:  แถวแรก = "ชื่อ",1,2,3,...,D   (หัวเป็นเลขวันที่)
+//          แถวถัดไป = ชื่อพยาบาล, token แต่ละวัน (ว่าง = ช่องว่าง)
+//   token: ช บ ด | ช+บ / ชบ (2 กะ/วัน) | R O V T
+//   แถวสรุป/รวมท้ายไฟล์ (ขึ้นต้นด้วย "รวม"/"ขึ้นเวร"/"หยุด") จะถูกข้าม
+// ============================================================================
+
+
+
+/** แยกข้อความ CSV → array ของ array (รองรับฟิลด์ในเครื่องหมายคำพูด) */
+function parseCsv(text) {
+  let s = String(text);
+  if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1); // ตัด BOM
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (s[i + 1] === '"') { field += '"'; i++; } else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ',') {
+      row.push(field); field = '';
+    } else if (c === '\r') {
+      /* ข้าม */
+    } else if (c === '\n') {
+      row.push(field); rows.push(row); row = []; field = '';
+    } else {
+      field += c;
+    }
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+const FOOTER_RE = /^(รวม|ขึ้นเวร|หยุด|เป้า|โควตา)/;
+
+/**
+ * CSV → { days, staff:[{name, locked:{day:token}}] }
+ * (ส่งต่อเข้า parseRoster ได้เลย)
+ */
+function csvToStaffGrid(text) {
+  const rows = parseCsv(text).filter((r) => r.some((c) => c.trim() !== ''));
+  if (rows.length < 2) throw new Error('CSV ต้องมีหัวตาราง + อย่างน้อย 1 แถว');
+
+  const header = rows[0];
+  // นับคอลัมน์วันที่จากหัวที่เป็นตัวเลขติดกันหลังคอลัมน์แรก
+  let days = 0;
+  for (let i = 1; i < header.length; i++) {
+    if (/^\d+$/.test(header[i].trim())) days++;
+    else break;
+  }
+  if (days === 0) days = header.length - 1;
+  if (days < 1 || days > 31) throw new Error(`จำนวนวันจาก CSV ไม่ถูกต้อง: ${days}`);
+
+  const staff = [];
+  for (let r = 1; r < rows.length; r++) {
+    const cells = rows[r];
+    const name = (cells[0] || '').trim();
+    if (!name || FOOTER_RE.test(name)) continue;
+    const locked = {};
+    for (let d = 0; d < days; d++) {
+      const tok = (cells[d + 1] || '').trim();
+      if (tok) locked[String(d + 1)] = tok;
+    }
+    staff.push({ name, locked });
+  }
+  if (!staff.length) throw new Error('CSV ไม่พบแถวพยาบาล');
+  return { days, staff };
+}
+
+/** roster → ข้อความ CSV (มี BOM ให้ Excel อ่านภาษาไทยถูก) */
+function rosterToCsv(roster) {
+  const esc = (v) => (/[",\n]/.test(v) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+  const head = ['ชื่อ'];
+  for (let d = 1; d <= roster.days; d++) head.push(String(d));
+  const lines = [head.map(esc).join(',')];
+
+  roster.staff.forEach((s, si) => {
+    const row = [s.name];
+    for (let d = 0; d < roster.days; d++) row.push(cellToToken(roster.grid[si][d]) || '');
+    lines.push(row.map(esc).join(','));
+  });
+  return '﻿' + lines.join('\r\n');
+}
+
+
+// ============================================================================
+// xlsx.js — ส่งออกตารางเวรเป็นไฟล์ Excel (.xlsx) โดยไม่พึ่งไลบรารีภายนอก
+//
+// JS บริสุทธิ์ ห้ามแตะ DOM — คืน Uint8Array (UI เอาไปห่อ Blob เอง)
+//
+// .xlsx = ZIP (แบบ "stored" ไม่บีบอัด) ที่บรรจุไฟล์ XML ตามสเปก OOXML:
+//   [Content_Types].xml, _rels/.rels, xl/workbook.xml,
+//   xl/_rels/workbook.xml.rels, xl/styles.xml, xl/worksheets/sheet1.xml
+// ============================================================================
+
+
+
+
+// ---------------------------------------------------------------------------
+// CRC32 + ZIP (stored)
+// ---------------------------------------------------------------------------
+const CRC32_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC32_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function u8concat(arrays) {
+  let len = 0;
+  for (const a of arrays) len += a.length;
+  const out = new Uint8Array(len);
+  let o = 0;
+  for (const a of arrays) { out.set(a, o); o += a.length; }
+  return out;
+}
+const u16 = (n) => new Uint8Array([n & 255, (n >>> 8) & 255]);
+const u32 = (n) => new Uint8Array([n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255]);
+
+/** files: [{ name, bytes:Uint8Array }] → Uint8Array ของ zip */
+function zipStore(files) {
+  const enc = new TextEncoder();
+  const parts = [];
+  const central = [];
+  let offset = 0;
+  const put = (a) => { parts.push(a); offset += a.length; };
+
+  for (const f of files) {
+    const nameBytes = enc.encode(f.name);
+    const crc = crc32(f.bytes);
+    const size = f.bytes.length;
+    const localAt = offset;
+    put(u8concat([
+      u32(0x04034b50), u16(20), u16(0x0800), u16(0), u16(0), u16(0x21),
+      u32(crc), u32(size), u32(size), u16(nameBytes.length), u16(0),
+    ]));
+    put(nameBytes);
+    put(f.bytes);
+    central.push(u8concat([
+      u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(0), u16(0), u16(0x21),
+      u32(crc), u32(size), u32(size),
+      u16(nameBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0),
+      u32(localAt), nameBytes,
+    ]));
+  }
+
+  const cdAt = offset;
+  let cdSize = 0;
+  for (const c of central) { put(c); cdSize += c.length; }
+  put(u8concat([
+    u32(0x06054b50), u16(0), u16(0),
+    u16(central.length), u16(central.length),
+    u32(cdSize), u32(cdAt), u16(0),
+  ]));
+
+  return u8concat(parts);
+}
+
+// ---------------------------------------------------------------------------
+// XML helper
+// ---------------------------------------------------------------------------
+function xmlEsc(s) {
+  return String(s)
+    // ตัด control char ที่ XML 1.0 ไม่รับ (เหลือ \t \n \r) — กัน .xlsx เปิดไม่ได้
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+    .replace(/[&<>"]/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+    ));
+}
+
+/** เลขคอลัมน์ 1-based → ตัวอักษร (1→A, 27→AA) */
+function colName(n) {
+  let s = '';
+  while (n > 0) {
+    const m = (n - 1) % 26;
+    s = String.fromCharCode(65 + m) + s;
+    n = (n - m - 1) / 26;
+  }
+  return s;
+}
+
+// ดัชนี style ใน cellXfs (ดู styles.xml ด้านล่าง)
+const ST = {
+  DEFAULT: 0, HEAD: 1, CENTER: 2, NAME: 3, WKND: 4,
+  ch: 5, b: 6, d: 7, DBL: 8, R: 9, O: 10, V: 11, T: 12,
+  TITLE: 13, FOOT: 14, SUM: 15,
+};
+
+function tokenStyle(tok, weekend) {
+  if (!tok) return weekend ? ST.WKND : ST.CENTER;
+  if (tok.includes('+')) return ST.DBL;
+  return ST[tok] != null ? ST[tok] : ST.CENTER;
+}
+
+function cStr(ref, style, text) {
+  if (text === '' || text == null) return `<c r="${ref}" s="${style}"/>`;
+  return `<c r="${ref}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(text)}</t></is></c>`;
+}
+function cNum(ref, style, n) {
+  return `<c r="${ref}" s="${style}"><v>${n}</v></c>`;
+}
+
+// ---------------------------------------------------------------------------
+// styles.xml
+// ---------------------------------------------------------------------------
+const FILL_RGB = [
+  null, null,          // 0 none, 1 gray125 (สงวนไว้)
+  'FFF2F2F2',          // 2 header
+  'FFFDEDED',          // 3 weekend
+  'FFFEF3C7',          // 4 ช
+  'FFFFE4D5',          // 5 บ
+  'FFDBEAFE',          // 6 ด
+  'FFFDE68A',          // 7 2 กะ/วัน
+  'FFF1F5F9',          // 8 R
+  'FFE2E8F0',          // 9 O
+  'FFF3E8FF',          // 10 V
+  'FFDCFCE7',          // 11 T
+];
+
+function stylesXml() {
+  const fills = FILL_RGB.map((rgb, i) => {
+    if (i === 0) return '<fill><patternFill patternType="none"/></fill>';
+    if (i === 1) return '<fill><patternFill patternType="gray125"/></fill>';
+    return `<fill><patternFill patternType="solid"><fgColor rgb="${rgb}"/><bgColor indexed="64"/></patternFill></fill>`;
+  }).join('');
+
+  const align = (h) => `<alignment horizontal="${h}" vertical="center"/>`;
+  const XF = (font, fill, border, h) =>
+    `<xf numFmtId="0" fontId="${font}" fillId="${fill}" borderId="${border}" xfId="0" `
+    + `applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">${align(h)}</xf>`;
+
+  const cellXfs = [
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>', // 0 DEFAULT
+    XF(1, 2, 1, 'center'),   // 1 HEAD
+    XF(0, 0, 1, 'center'),   // 2 CENTER
+    XF(1, 0, 1, 'left'),     // 3 NAME
+    XF(0, 3, 1, 'center'),   // 4 WKND (ว่าง)
+    XF(0, 4, 1, 'center'),   // 5 ช
+    XF(0, 5, 1, 'center'),   // 6 บ
+    XF(0, 6, 1, 'center'),   // 7 ด
+    XF(1, 7, 1, 'center'),   // 8 2 กะ/วัน
+    XF(0, 8, 1, 'center'),   // 9 R
+    XF(0, 9, 1, 'center'),   // 10 O
+    XF(0, 10, 1, 'center'),  // 11 V
+    XF(0, 11, 1, 'center'),  // 12 T
+    '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>', // 13 TITLE
+    XF(1, 2, 1, 'left'),     // 14 FOOT label
+    XF(1, 2, 1, 'center'),   // 15 SUM number
+  ];
+
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    + '<fonts count="3">'
+    + '<font><sz val="11"/><name val="Tahoma"/></font>'
+    + '<font><b/><sz val="11"/><name val="Tahoma"/></font>'
+    + '<font><b/><sz val="14"/><name val="Tahoma"/></font>'
+    + '</fonts>'
+    + `<fills count="${FILL_RGB.length}">${fills}</fills>`
+    + '<borders count="2">'
+    + '<border><left/><right/><top/><bottom/><diagonal/></border>'
+    + '<border>'
+    + '<left style="thin"><color rgb="FFBFBFBF"/></left><right style="thin"><color rgb="FFBFBFBF"/></right>'
+    + '<top style="thin"><color rgb="FFBFBFBF"/></top><bottom style="thin"><color rgb="FFBFBFBF"/></bottom>'
+    + '<diagonal/></border>'
+    + '</borders>'
+    + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+    + `<cellXfs count="${cellXfs.length}">${cellXfs.join('')}</cellXfs>`
+    + '</styleSheet>';
+}
+
+// ---------------------------------------------------------------------------
+// worksheet
+// ---------------------------------------------------------------------------
+const XLSX_TH_MONTH = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+];
+
+function sheetXml(roster, rules, report) {
+  const D = roster.days;
+  const N = roster.staff.length;
+  const fwi = roster.firstWeekdayIndex;
+  const isWknd = (d) => {
+    const wd = (fwi + d) % 7;
+    return wd === 0 || wd === 6;
+  };
+  const lastCol = D + 7;               // 1 ชื่อ + D วัน + 6 สรุป
+  const SUM_C0 = D + 2;                // คอลัมน์แรกของบล็อกสรุป
+
+  const cov = {};
+  for (const c of report.coverage) cov[c.day + '|' + c.shift] = c.assigned;
+
+  const rows = [];
+
+  // แถว 1 — หัวเรื่อง
+  const title = (roster.year && roster.month)
+    ? `ตารางเวร ${XLSX_TH_MONTH[roster.month - 1]} ${roster.year}`
+    : `ตารางเวร ${D} วัน`;
+  rows.push(`<row r="1">${cStr('A1', ST.TITLE, title)}</row>`);
+
+  // แถว 2 — หัวคอลัมน์ (ชื่อ | 1..D | รวมวันทำงาน | ช | บ | ด | ช+บ | O+R)
+  {
+    const cells = [cStr('A2', ST.HEAD, 'ชื่อ')];
+    for (let d = 0; d < D; d++) cells.push(cNum(colName(d + 2) + '2', ST.HEAD, d + 1));
+    const labels = ['รวมวันทำงาน', 'ช', 'บ', 'ด', 'ช+บ', 'วันหยุด O+R'];
+    labels.forEach((lb, i) => cells.push(cStr(colName(SUM_C0 + i) + '2', ST.HEAD, lb)));
+    rows.push(`<row r="2">${cells.join('')}</row>`);
+  }
+
+  // แถว 3 — ชื่อวัน
+  {
+    const cells = [cStr('A3', ST.HEAD, '')];
+    for (let d = 0; d < D; d++) {
+      cells.push(cStr(colName(d + 2) + '3', ST.HEAD, WEEKDAY_SHORT[(fwi + d) % 7]));
+    }
+    for (let i = 0; i < 6; i++) cells.push(cStr(colName(SUM_C0 + i) + '3', ST.HEAD, ''));
+    rows.push(`<row r="3">${cells.join('')}</row>`);
+  }
+
+  // แถวพยาบาล
+  roster.staff.forEach((staff, si) => {
+    const rn = si + 4;
+    const p = report.perPerson[si];
+    const cells = [cStr('A' + rn, ST.NAME, staff.name)];
+    for (let d = 0; d < D; d++) {
+      const tok = cellToToken(roster.grid[si][d]) || '';
+      cells.push(cStr(colName(d + 2) + rn, tokenStyle(tok, isWknd(d)), tok));
+    }
+    const sums = [p.work, p.byShift[SHIFT.MORNING], p.byShift[SHIFT.AFTERNOON], p.byShift[SHIFT.NIGHT], p.doubles, p.rest];
+    sums.forEach((v, i) => cells.push(cNum(colName(SUM_C0 + i) + rn, ST.SUM, v)));
+    rows.push(`<row r="${rn}">${cells.join('')}</row>`);
+  });
+
+  // แถวสรุปท้าย
+  const footRow = (rn, label, valueFn) => {
+    const cells = [cStr('A' + rn, ST.FOOT, label)];
+    for (let d = 0; d < D; d++) cells.push(cNum(colName(d + 2) + rn, ST.CENTER, valueFn(d)));
+    for (let i = 0; i < 6; i++) cells.push(cStr(colName(SUM_C0 + i) + rn, ST.FOOT, ''));
+    return `<row r="${rn}">${cells.join('')}</row>`;
+  };
+  let rn = N + 4;
+  for (const sh of [SHIFT.MORNING, SHIFT.AFTERNOON, SHIFT.NIGHT]) {
+    rows.push(footRow(rn++, `รวม ${sh}`, (d) => cov[(d + 1) + '|' + sh] || 0));
+  }
+  rows.push(footRow(rn++, 'ขึ้นเวรวันนั้น (คน)', (d) => {
+    let n = 0;
+    for (let i = 0; i < N; i++) if (roster.grid[i][d].shifts.length > 0) n++;
+    return n;
+  }));
+  rows.push(footRow(rn++, 'หยุด R+O', (d) => {
+    let n = 0;
+    for (let i = 0; i < N; i++) { const o = roster.grid[i][d].off; if (o === 'R' || o === 'O') n++; }
+    return n;
+  }));
+
+  const dim = `A1:${colName(lastCol)}${rn - 1}`;
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    + `<dimension ref="${dim}"/>`
+    + '<sheetViews><sheetView tabSelected="1" workbookViewId="0">'
+    + '<pane xSplit="1" ySplit="3" topLeftCell="B4" activePane="bottomRight" state="frozen"/>'
+    + '<selection pane="bottomRight" activeCell="B4" sqref="B4"/>'
+    + '</sheetView></sheetViews>'
+    + '<sheetFormatPr defaultRowHeight="16"/>'
+    + '<cols>'
+    + '<col min="1" max="1" width="16" customWidth="1"/>'
+    + `<col min="2" max="${D + 1}" width="3.6" customWidth="1"/>`
+    + `<col min="${SUM_C0}" max="${SUM_C0}" width="13" customWidth="1"/>`
+    + `<col min="${SUM_C0 + 1}" max="${lastCol}" width="5.5" customWidth="1"/>`
+    + '</cols>'
+    + `<sheetData>${rows.join('')}</sheetData>`
+    + `<mergeCells count="1"><mergeCell ref="A1:${colName(Math.min(lastCol, 8))}1"/></mergeCells>`
+    + '</worksheet>';
+}
+
+// ---------------------------------------------------------------------------
+// export
+// ---------------------------------------------------------------------------
+/**
+ * @param {object} roster
+ * @param {object} rules
+ * @param {object} report  ผลจาก analyze(roster, rules)
+ * @returns {Uint8Array}
+ */
+function rosterToXlsx(roster, rules, report) {
+  const enc = new TextEncoder();
+  const file = (name, str) => ({ name, bytes: enc.encode(str) });
+
+  const files = [
+    file('[Content_Types].xml',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+      + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+      + '<Default Extension="xml" ContentType="application/xml"/>'
+      + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+      + '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+      + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+      + '</Types>'),
+    file('_rels/.rels',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+      + '</Relationships>'),
+    file('xl/workbook.xml',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+      + 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+      + '<sheets><sheet name="ตารางเวร" sheetId="1" r:id="rId1"/></sheets>'
+      + '</workbook>'),
+    file('xl/_rels/workbook.xml.rels',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+      + '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+      + '</Relationships>'),
+    file('xl/styles.xml', stylesXml()),
+    file('xl/worksheets/sheet1.xml', sheetXml(roster, rules, report)),
+  ];
+
+  return zipStore(files);
+}
+</script>
+<script>// ============================================================================
+// app.js — UI ต่อกับ engine (model.js / io.js / analyze.js ถูก bundle มาก่อนหน้า)
+//
+// engine เปิดเป็น global ให้แล้ว: makeRoster, parseRoster, serializeRoster,
+//   analyze, cloneRoster, cellToToken, parseCellToken, setCellShifts, ...
+// ============================================================================
+
+(function () {
+  'use strict';
+
+  const TH_MONTH = [
+    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+  ];
+
+  // วนค่าเมื่อคลิกซ้าย
+  const CYCLE = ['', 'ช', 'บ', 'ด', 'R', 'O', 'V', 'T'];
+  // เมนูคลิกขวา
+  const PICK = ['ช', 'บ', 'ด', 'ช+บ', 'บ+ด', 'ช+ด', 'R', 'O', 'V', 'T'];
+
+  const LEGEND = [
+    ['ช', 'เช้า', 't-ch'], ['บ', 'บ่าย', 't-b'], ['ด', 'ดึก', 't-d'],
+    ['ช+บ', '2 กะ/วัน', 't-dbl'], ['บ+ด', '2 กะ/วัน', 't-dbl'], ['ช+ด', '2 กะ/วัน', 't-dbl'],
+    ['R', 'หยุด', 't-R'], ['O', 'หยุด (ระบบเติม)', 't-O'], ['V', 'ลา', 't-V'], ['T', 'อบรม', 't-T'],
+  ];
+
+  const $ = (sel, root) => (root || document).querySelector(sel);
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+
+  const now = new Date();
+  const S = {
+    roster: null, rules: null, report: null,
+    month: { be: now.getFullYear() + 543, mn: now.getMonth() + 1 },
+  };
+  const undoStack = [];
+  let toastTimer = 0;
+
+  // ---------------------------------------------------------------------------
+  // เดือน / ปี (พ.ศ.) — คำนวณจำนวนวัน + วันเริ่มต้นจากปฏิทินจริง
+  // ---------------------------------------------------------------------------
+  const DEFAULT_ROWS = 12;
+
+  function calendarFor(be, mn) {
+    const ce = be - 543;
+    const days = new Date(ce, mn, 0).getDate();
+    const fwi = new Date(ce, mn - 1, 1).getDay(); // 0=อาทิตย์ ตรงกับ WEEKDAYS
+    return { days, firstWeekdayIndex: fwi, firstWeekday: WEEKDAYS[fwi] };
+  }
+
+  /** ตารางเปล่าของเดือนที่เลือก (แถวพยาบาลว่าง ๆ) */
+  function blankRoster(be, mn, rows) {
+    const cal = calendarFor(be, mn);
+    const staff = [];
+    for (let i = 1; i <= rows; i++) staff.push({ name: `พยาบาล ${i}` });
+    return makeRoster({ days: cal.days, firstWeekday: cal.firstWeekday, year: be, month: mn, staff });
+  }
+
+  function initMonthUI() {
+    const sel = $('#selMonth');
+    TH_MONTH.forEach((name, i) => {
+      const o = el('option', null, name);
+      o.value = String(i + 1);
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => setMonth(S.month.be, +sel.value));
+    $('#selYear').addEventListener('change', () => {
+      const be = +$('#selYear').value;
+      if (be >= 2500 && be <= 2650) setMonth(be, S.month.mn);
+      else syncMonthUI();
+    });
+    syncMonthUI();
+  }
+
+  function syncMonthUI() {
+    $('#selMonth').value = String(S.month.mn);
+    $('#selYear').value = String(S.month.be);
+  }
+
+  // ---------------------------------------------------------------------------
+  // กติกา: วันหยุด O+R ต่อคน
+  // ---------------------------------------------------------------------------
+  const TARGET_INPUT = { [SHIFT.MORNING]: 'selTargetCh', [SHIFT.AFTERNOON]: 'selTargetB', [SHIFT.NIGHT]: 'selTargetD' };
+
+  function syncRuleUI() {
+    if (!S.rules) return;
+    for (const sh of SHIFT_VALUES) $('#' + TARGET_INPUT[sh]).value = String(S.rules.target[sh].min);
+    $('#selQuota').value = String(S.rules.offQuota);
+    $('#selExact').checked = S.rules.offQuotaMode === 'exact';
+  }
+  function initRuleUI() {
+    for (const sh of SHIFT_VALUES) {
+      const input = $('#' + TARGET_INPUT[sh]);
+      input.addEventListener('change', () => {
+        const n = +input.value;
+        if (Number.isInteger(n) && n >= 0 && n <= 99) { S.rules.target[sh] = { min: n, max: n }; render(); }
+        else syncRuleUI();
+      });
+    }
+    $('#selQuota').addEventListener('change', () => {
+      const n = +$('#selQuota').value;
+      if (Number.isInteger(n) && n >= 0 && n <= 31) { S.rules.offQuota = n; render(); }
+      else syncRuleUI();
+    });
+    $('#selExact').addEventListener('change', () => {
+      S.rules.offQuotaMode = $('#selExact').checked ? 'exact' : 'max';
+      render();
+    });
+    syncRuleUI();
+  }
+
+  function shiftMonth(delta) {
+    let { be, mn } = S.month;
+    mn += delta;
+    if (mn > 12) { mn = 1; be += 1; }
+    if (mn < 1) { mn = 12; be -= 1; }
+    setMonth(be, mn);
+  }
+
+  function resizeRoster(r, days) {
+    if (days === r.days) return;
+    if (days > r.days) {
+      for (const row of r.grid) while (row.length < days) row.push(makeCell());
+    } else {
+      let lost = 0;
+      for (const row of r.grid) {
+        for (let d = days; d < row.length; d++) {
+          const c = row[d];
+          if (c.shifts.length || c.off !== null) lost += 1;
+        }
+        row.length = days;
+      }
+      if (lost) toast(`ตัดวันที่ ${days + 1}–${r.days} ออก (มีข้อมูล ${lost} ช่อง)`);
+    }
+    r.days = days;
+  }
+
+  function setMonth(be, mn) {
+    S.month = { be, mn };
+    const cal = calendarFor(be, mn);
+    if (S.roster) {
+      pushUndo();
+      resizeRoster(S.roster, cal.days);
+      S.roster.firstWeekday = cal.firstWeekday;
+      S.roster.firstWeekdayIndex = cal.firstWeekdayIndex;
+      S.roster.year = be;
+      S.roster.month = mn;
+    }
+    syncMonthUI();
+    render();
+  }
+
+  // ---------------------------------------------------------------------------
+  // token → คลาสสี
+  // ---------------------------------------------------------------------------
+  function tokenClass(tok) {
+    if (!tok) return 'empty';
+    if (tok.includes('+')) return 't-dbl';
+    return { 'ช': 't-ch', 'บ': 't-b', 'ด': 't-d', 'R': 't-R', 'O': 't-O', 'V': 't-V', 'T': 't-T' }[tok] || '';
+  }
+
+  // ---------------------------------------------------------------------------
+  // โหลด / บันทึก
+  // ---------------------------------------------------------------------------
+  function loadDoc(doc) {
+    const { roster, rules, warnings } = parseRoster(doc);
+    S.roster = roster;
+    S.rules = rules;
+    if (roster.year && roster.month) S.month = { be: roster.year, mn: roster.month };
+    undoStack.length = 0;
+    syncMonthUI();
+    syncRuleUI();
+    render();
+    if (warnings.length) toast(`เปิดไฟล์ได้ (มีคำเตือน ${warnings.length} รายการ)`);
+  }
+
+  function saveDoc() {
+    if (!S.roster) return;
+    const text = JSON.stringify(serializeRoster(S.roster, S.rules), null, 2);
+    const blob = new Blob([text], { type: 'application/json' });
+    const a = el('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'roster.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // ---------------------------------------------------------------------------
+  // แก้ค่าช่อง
+  // ---------------------------------------------------------------------------
+  function pushUndo() {
+    undoStack.push(cloneRoster(S.roster));
+    if (undoStack.length > 60) undoStack.shift();
+  }
+  function undo() {
+    if (!undoStack.length) return;
+    S.roster = undoStack.pop();
+    render();
+  }
+
+  function setToken(si, di, tok) {
+    const cell = S.roster.grid[si][di];
+    if (tok === '') { clearCellValue(cell); return; }
+    const p = parseCellToken(tok);
+    if (p.off !== null) setCellOff(cell, p.off);
+    else setCellShifts(cell, p.shifts);
+  }
+
+  function cycleCell(si, di) {
+    const cell = S.roster.grid[si][di];
+    const cur = cellToToken(cell) || '';
+    const idx = CYCLE.indexOf(cur.includes('+') ? '' : cur);
+    const next = CYCLE[(idx + 1) % CYCLE.length];
+    pushUndo();
+    const wasLocked = cell.locked;
+    setToken(si, di, next);
+    cell.locked = wasLocked;
+    render();
+  }
+
+  function toggleLock(si, di) {
+    const cell = S.roster.grid[si][di];
+    pushUndo();
+    cell.locked = !cell.locked;
+    render();
+  }
+
+  // ---------------------------------------------------------------------------
+  // เมนูคลิกขวา
+  // ---------------------------------------------------------------------------
+  function openMenu(x, y, si, di) {
+    const menu = $('#menu');
+    menu.innerHTML = '';
+    const cell = S.roster.grid[si][di];
+
+    for (const tok of PICK) {
+      const b = el('button');
+      b.appendChild(withChip(tok));
+      b.onclick = () => { pushUndo(); const lk = cell.locked; setToken(si, di, tok); cell.locked = lk; closeMenu(); render(); };
+      menu.appendChild(b);
+    }
+    menu.appendChild(el('div', 'sep'));
+
+    const clr = el('button', null, 'ล้างช่อง');
+    clr.onclick = () => { pushUndo(); const lk = cell.locked; setToken(si, di, ''); cell.locked = lk; closeMenu(); render(); };
+    menu.appendChild(clr);
+
+    const lk = el('button', null, cell.locked ? 'ปลดล็อก' : 'ล็อกช่อง');
+    lk.onclick = () => { toggleLock(si, di); closeMenu(); };
+    menu.appendChild(lk);
+
+    menu.hidden = false;
+    const w = menu.offsetWidth, h = menu.offsetHeight;
+    menu.style.left = Math.min(x, innerWidth - w - 8) + 'px';
+    menu.style.top = Math.min(y, innerHeight - h - 8) + 'px';
+  }
+  function closeMenu() { $('#menu').hidden = true; }
+  function withChip(tok) {
+    const s = el('span', 'chip ' + tokenClass(tok), tok);
+    s.style.minWidth = '0';
+    return s;
+  }
+
+  function placeMenu(menu, x, y) {
+    menu.hidden = false;
+    const w = menu.offsetWidth, h = menu.offsetHeight;
+    menu.style.left = Math.min(x, innerWidth - w - 8) + 'px';
+    menu.style.top = Math.min(y, innerHeight - h - 8) + 'px';
+  }
+
+  /** เมนู "กะที่พยาบาลคนนี้ทำได้" (staff.allow) — เปิดค้าง กดติ๊กได้หลายรอบ */
+  function openAllowMenu(x, y, si) {
+    const menu = $('#menu');
+    const staff = S.roster.staff[si];
+    const all = ALLOW_TOKENS;
+    const set = new Set(staff.allow && staff.allow.length ? staff.allow : all);
+    let snapshotPushed = false;
+
+    const commit = () => {
+      if (!snapshotPushed) { pushUndo(); snapshotPushed = true; }
+      staff.allow = (set.size === all.length) ? [] : all.filter((t) => set.has(t));
+      render();
+    };
+
+    menu.innerHTML = '';
+    menu.appendChild(el('div', 'menu-head', `กะที่ทำได้ · ${staff.name}`));
+
+    for (const tok of all) {
+      const b = el('button');
+      const chk = el('span', 'chk', set.has(tok) ? '☑' : '☐');
+      b.appendChild(chk);
+      b.appendChild(withChip(tok));
+      b.onclick = (ev) => {
+        ev.stopPropagation();
+        if (set.has(tok)) { if (set.size <= 1) { toast('ต้องเลือกอย่างน้อย 1 กะ'); return; } set.delete(tok); }
+        else set.add(tok);
+        chk.textContent = set.has(tok) ? '☑' : '☐';
+        commit();
+      };
+      menu.appendChild(b);
+    }
+
+    menu.appendChild(el('div', 'sep'));
+    const clr = el('button', null, 'ทุกกะ (ไม่จำกัด)');
+    clr.onclick = (ev) => {
+      ev.stopPropagation();
+      set.clear();
+      for (const t of all) set.add(t);
+      for (const el2 of menu.querySelectorAll('.chk')) el2.textContent = '☑';
+      commit();
+    };
+    menu.appendChild(clr);
+
+    const done = el('button', 'menu-done', 'เสร็จ');
+    done.onclick = (ev) => { ev.stopPropagation(); closeMenu(); };
+    menu.appendChild(done);
+
+    placeMenu(menu, x, y);
+  }
+
+  // ---------------------------------------------------------------------------
+  // RENDER
+  // ---------------------------------------------------------------------------
+  function render() {
+    const r = S.roster;
+    const empty = $('#empty');
+    const grid = $('#grid');
+    if (!r || r.staff.length === 0) {
+      empty.classList.add('show');
+      grid.style.display = 'none';
+      $('#report').hidden = true;
+      $('#reportBtn').classList.remove('on');
+      $('#title').textContent = r ? titleText(r) : 'จัดตารางเวรพยาบาล';
+      return;
+    }
+    empty.classList.remove('show');
+    grid.style.display = '';
+
+    S.report = analyze(r, S.rules);
+    $('#title').textContent = titleText(r);
+    renderLegend();
+    renderHead(r);
+    renderBody(r);
+    renderFoot(r);
+    if (!$('#report').hidden) renderReport();
+  }
+
+  function titleText(r) {
+    if (r.year && r.month) return `${TH_MONTH[r.month - 1]} ${r.year} · ${r.days} วัน`;
+    return `${r.days} วัน · เริ่มวัน${r.firstWeekday}`;
+  }
+
+  function renderLegend() {
+    const box = $('#legend');
+    box.innerHTML = '';
+    for (const [tok, label, cls] of LEGEND) {
+      const s = el('span', 'sym ' + cls);
+      s.appendChild(el('b', null, tok));
+      s.appendChild(el('span', null, label));
+      box.appendChild(s);
+    }
+    box.appendChild(el('span', 'hint', 'คลิกช่องเพื่อวนค่า · Shift+คลิก ล็อก · คลิกขวา เลือกค่า · คลิกขวาที่ชื่อ = กำหนดกะที่ทำได้ · Ctrl+Z ย้อน'));
+  }
+
+  function renderHead(r) {
+    const tr = el('tr');
+    tr.appendChild(thName('พยาบาล'));
+    for (let d = 0; d < r.days; d++) {
+      const th = el('th', 'day');
+      if (isWeekend(r, d)) th.classList.add('wknd');
+      if (S.report.gaps.some((g) => g.day === d + 1 && g.status === 'over')) th.classList.add('bad');
+      th.appendChild(el('span', 'dh-num', String(d + 1)));
+      th.appendChild(el('span', 'dh-dow', WEEKDAY_SHORT[weekdayIndexForDay(r, d)]));
+      tr.appendChild(th);
+    }
+    const th = el('th', 'col-sum');
+    th.title = 'รวมวันทำงาน · ช · บ · ด · ช+บ (2 กะ/วัน) · วันหยุด O+R';
+    th.appendChild(sumRow(['รวม', 'ช', 'บ', 'ด', 'ช+บ', 'O+R'], true));
+    tr.appendChild(th);
+    const head = $('#grid thead');
+    head.innerHTML = '';
+    head.appendChild(tr);
+  }
+  function thName(t) { const th = el('th', 'col-name', t); return th; }
+
+  /** แถวตารางสรุปด้านขวา (6 ช่อง) — เลย์เอาต์เหมือน PDF */
+  function sumRow(vals, head) {
+    const g = el('div', 'sumgrid' + (head ? ' head' : ''));
+    for (const v of vals) {
+      const s = el('span', (!head && (v === 0 || v === '0')) ? 'z' : null, String(v));
+      g.appendChild(s);
+    }
+    return g;
+  }
+
+  function badCellSet() {
+    const set = new Set();
+    const idById = {};
+    S.roster.staff.forEach((s, i) => { idById[s.id] = i; });
+    for (const v of S.report.violations) {
+      if (v.staffId != null && v.day != null && idById[v.staffId] != null) {
+        set.add(idById[v.staffId] + '|' + (v.day - 1));
+      }
+    }
+    return set;
+  }
+
+  function renderBody(r) {
+    const bad = badCellSet();
+    const body = $('#grid tbody');
+    body.innerHTML = '';
+    r.staff.forEach((staff, si) => {
+      const tr = el('tr');
+      const name = el('td', 'col-name');
+      name.dataset.si = si;
+      const nm1 = el('span', 'nm-1', staff.name);
+      nm1.title = 'ดับเบิลคลิกเพื่อแก้ชื่อ · คลิกขวากำหนดกะที่ทำได้';
+      nm1.ondblclick = () => {
+        const v = window.prompt('ชื่อพยาบาล', staff.name);
+        if (v != null) { pushUndo(); staff.name = v.trim() || staff.name; render(); }
+      };
+      name.appendChild(nm1);
+      const bits = [staff.role, staff.team].filter(Boolean);
+      if (staff.allow && staff.allow.length) bits.push('กะ: ' + staff.allow.join(' '));
+      if (bits.length) name.appendChild(el('span', 'nm-2', bits.join(' · ')));
+      const cfg = el('button', 'rowcfg', 'กะ');
+      cfg.title = 'กำหนดกะที่พยาบาลคนนี้ทำได้';
+      cfg.onclick = (ev) => { ev.stopPropagation(); openAllowMenu(ev.clientX, ev.clientY, si); };
+      name.appendChild(cfg);
+      const del = el('button', 'rowdel', '×');
+      del.title = 'ลบแถวนี้';
+      del.onclick = (ev) => {
+        ev.stopPropagation();
+        if (S.roster.staff.length <= 1) { toast('ต้องมีอย่างน้อย 1 แถว'); return; }
+        pushUndo();
+        removeStaff(S.roster, si);
+        render();
+      };
+      name.appendChild(del);
+      tr.appendChild(name);
+
+      for (let di = 0; di < r.days; di++) {
+        const cell = r.grid[si][di];
+        const td = el('td', 'cell');
+        if (isWeekend(r, di)) td.classList.add('wknd');
+        if (cell.locked) td.classList.add('locked');
+        if (bad.has(si + '|' + di)) td.classList.add('bad');
+        const tok = cellToToken(cell) || '';
+        td.appendChild(el('span', 'chip ' + tokenClass(tok), tok || '·'));
+        td.dataset.si = si;
+        td.dataset.di = di;
+        tr.appendChild(td);
+      }
+
+      const p = S.report.perPerson[si];
+      const sum = el('td', 'col-sum');
+      const extra = [p.leave ? `V ${p.leave}` : '', p.training ? `T ${p.training}` : ''].filter(Boolean).join(' · ');
+      if (extra) sum.title = extra;
+      sum.appendChild(sumRow(
+        [p.work, p.byShift['ช'], p.byShift['บ'], p.byShift['ด'], p.doubles, p.rest],
+        false,
+      ));
+      tr.appendChild(sum);
+      body.appendChild(tr);
+    });
+  }
+
+  function renderFoot(r) {
+    const cov = {};
+    for (const c of S.report.coverage) cov[c.day + '|' + c.shift] = c;
+
+    const foot = $('#grid tfoot');
+    foot.innerHTML = '';
+
+    for (const sh of ['ช', 'บ', 'ด']) {
+      const tr = el('tr');
+      tr.appendChild(el('td', 'col-name', `รวม ${sh}`));
+      for (let d = 0; d < r.days; d++) {
+        const c = cov[(d + 1) + '|' + sh];
+        const td = el('td', 'day');
+        if (c) {
+          td.classList.add('cnt', c.status);
+          td.textContent = c.assigned;
+        } else td.textContent = '–';
+        tr.appendChild(td);
+      }
+      const c0 = cov['1|' + sh] || { min: 0, max: 0 };
+      tr.appendChild(el('td', 'col-sum', `เป้า ${c0.min}${c0.max === c0.min ? '' : '–' + (c0.max == null ? '∞' : c0.max)}`));
+      foot.appendChild(tr);
+    }
+
+    // แถว "ขึ้นเวรวันนั้น (คน)" — เหมือน PDF
+    const trW = el('tr');
+    trW.appendChild(el('td', 'col-name', 'ขึ้นเวรวันนั้น (คน)'));
+    for (let d = 0; d < r.days; d++) {
+      let n = 0;
+      for (let si = 0; si < r.staff.length; si++) if (r.grid[si][d].shifts.length > 0) n++;
+      trW.appendChild(el('td', 'day', String(n)));
+    }
+    trW.appendChild(el('td', 'col-sum', ''));
+    foot.appendChild(trW);
+
+    // แถว R+O ต่อวัน
+    const tr = el('tr');
+    tr.appendChild(el('td', 'col-name', 'หยุด R+O'));
+    for (let d = 0; d < r.days; d++) {
+      let n = 0;
+      for (let si = 0; si < r.staff.length; si++) if (isRest(r.grid[si][d])) n++;
+      tr.appendChild(el('td', 'day', String(n)));
+    }
+    tr.appendChild(el('td', 'col-sum', `โควตา ${S.rules.offQuota}/คน`));
+    foot.appendChild(tr);
+  }
+
+  // ---------------------------------------------------------------------------
+  // REPORT panel
+  // ---------------------------------------------------------------------------
+  function toggleReport() {
+    const p = $('#report');
+    p.hidden = !p.hidden;
+    $('#reportBtn').classList.toggle('on', !p.hidden);
+    if (!p.hidden) renderReport();
+  }
+
+  function renderReport() {
+    const rep = S.report;
+    if (!rep) return;
+    const f = rep.feasibility;
+    const p = $('#report');
+    p.innerHTML = '';
+
+    const head = el('div', 'rp-head');
+    const pill = f.feasible ? '<span class="pill good">จัดได้</span>' : '<span class="pill bad">ยังจัดไม่ได้</span>';
+    head.innerHTML = `<b>รายงาน</b> ${pill} <span style="flex:1"></span>`;
+    const x = el('button', 'btn', 'ปิด');
+    x.onclick = toggleReport;
+    head.appendChild(x);
+    p.appendChild(head);
+
+    const body = el('div', 'rp-body');
+
+    // การ์ด 1 — ความเป็นไปได้
+    const c1 = el('div', 'rp-card');
+    c1.innerHTML = `<h4>ความเป็นไปได้</h4>
+      <div class="rp-stat"><b>${f.slotsNeeded}</b><span>slot ที่ต้องการ (ทั้งเดือน)</span></div>
+      <div class="rp-stat"><b>${f.workDaysAvailable}</b><span>วัน-คน ที่ว่างทำงาน</span></div>
+      <div class="rp-stat"><b class="${f.doublesNeeded > f.doubleCapacity ? 'warn' : ''}">${f.doublesNeeded}</b><span>ต้องเพิ่มวันขึ้น 2 กะ/วัน (เพดานรวม ${f.doubleCapacity})</span></div>
+      <div class="rp-stat"><b>${f.avgDoublesPerPerson}</b><span>เฉลี่ยต่อคน</span></div>
+      <div class="rp-stat"><b>${f.restDays}</b><span>วันหยุด R+O · ลา ${f.leaveDays} · อบรม ${f.trainingDays}</span></div>`;
+    if (f.reasons.length) {
+      for (const rs of f.reasons) c1.appendChild(el('div', 'rp-line error', rs));
+    }
+    body.appendChild(c1);
+
+    // การ์ด 2 — coverage ที่ยังไม่ครบ
+    const c2 = el('div', 'rp-card');
+    const under = rep.gaps.filter((g) => g.status === 'under');
+    const over = rep.gaps.filter((g) => g.status === 'over');
+    c2.innerHTML = `<h4>คนไม่พอ/เกิน (${under.length} ขาด · ${over.length} เกิน)</h4>`;
+    if (!under.length && !over.length) c2.appendChild(el('div', 'rp-ok', 'ครบทุกกะทุกวัน'));
+    for (const g of over) c2.appendChild(el('div', 'rp-line error', `วันที่ ${g.day} ${g.shift}: ${g.assigned} คน (เพดาน ${g.max})`));
+    for (const g of under.slice(0, 40)) c2.appendChild(el('div', 'rp-line', `วันที่ ${g.day} ${g.shift}: ${g.assigned}/${g.min}`));
+    if (under.length > 40) c2.appendChild(el('div', 'rp-ok', `…และอีก ${under.length - 40}`));
+    body.appendChild(c2);
+
+    // การ์ด 3 — การละเมิดกฎ
+    const c3 = el('div', 'rp-card');
+    c3.innerHTML = `<h4>ผิดกฎ (${rep.summary.errors} error · ${rep.summary.warnings} เตือน)</h4>`;
+    if (!rep.violations.length) c3.appendChild(el('div', 'rp-ok', 'ไม่พบการละเมิดกฎ'));
+    for (const v of rep.violations) c3.appendChild(el('div', 'rp-line ' + v.severity, v.message));
+    body.appendChild(c3);
+
+    p.appendChild(body);
+  }
+
+  // ---------------------------------------------------------------------------
+  // toast
+  // ---------------------------------------------------------------------------
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, 3000);
+  }
+
+  // ---------------------------------------------------------------------------
+  // events
+  // ---------------------------------------------------------------------------
+  function fileBase() {
+    const r = S.roster;
+    return (r && r.year && r.month) ? `เวร-${TH_MONTH[r.month - 1]}-${r.year}` : 'เวร';
+  }
+  function downloadBytes(bytes, name, mime) {
+    const a = el('a');
+    a.href = URL.createObjectURL(new Blob([bytes], { type: mime }));
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  function exportXlsx() {
+    if (!S.roster) return;
+    const rep = S.report || analyze(S.roster, S.rules);
+    downloadBytes(
+      rosterToXlsx(S.roster, S.rules, rep),
+      fileBase() + '.xlsx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+  }
+  function exportCsv() {
+    if (!S.roster) return;
+    downloadBytes(new TextEncoder().encode(rosterToCsv(S.roster)), fileBase() + '.csv', 'text/csv;charset=utf-8');
+  }
+
+  function onAction(act) {
+    if (act === 'sample') loadDoc(SAMPLE);
+    else if (act === 'open') $('#file').click();
+    else if (act === 'save') saveDoc();
+    else if (act === 'exportXlsx') exportXlsx();
+    else if (act === 'exportCsv') exportCsv();
+    else if (act === 'print') window.print();
+    else if (act === 'clear') {
+      pushUndo();
+      S.rules = mergeRules({});
+      S.roster = blankRoster(S.month.be, S.month.mn, DEFAULT_ROWS);
+      syncRuleUI();
+      render();
+    }
+    else if (act === 'addStaff') {
+      pushUndo();
+      addStaff(S.roster, { name: `พยาบาล ${S.roster.staff.length + 1}` });
+      render();
+    }
+    else if (act === 'report') toggleReport();
+    else if (act === 'solve') runSolve();
+    else if (act === 'prevMonth') shiftMonth(-1);
+    else if (act === 'nextMonth') shiftMonth(1);
+  }
+
+  function runSolve() {
+    if (!S.roster || S.roster.staff.length === 0) { toast('ยังไม่มีข้อมูล'); return; }
+    const btn = $('#solveBtn');
+    btn.disabled = true;
+    btn.textContent = 'กำลังจัด…';
+    toast('กำลังจัดตาราง…');
+    setTimeout(() => {
+      try {
+        pushUndo();
+        const t0 = performance.now();
+        const res = solve(S.roster, S.rules, { seed: 1 });
+        S.roster = res.roster;
+        render();
+        if ($('#report').hidden) toggleReport();
+        const ms = Math.round(performance.now() - t0);
+        const left = S.report.gaps.filter((g) => g.status === 'under').length;
+        toast(`จัดเสร็จใน ${ms} ms · เติม ${res.filled} ช่อง` + (left ? ` · ยังขาด ${left} กะ` : ' · ครบทุกกะ'));
+      } catch (err) {
+        toast('จัดไม่สำเร็จ: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'จัดตารางอัตโนมัติ';
+      }
+    }, 30);
+  }
+
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]');
+    if (b) { onAction(b.dataset.act); return; }
+    if (!e.target.closest('#menu')) closeMenu();
+  });
+
+  $('#grid').addEventListener('click', (e) => {
+    const td = e.target.closest('td.cell');
+    if (!td) return;
+    const si = +td.dataset.si, di = +td.dataset.di;
+    if (e.shiftKey) toggleLock(si, di);
+    else cycleCell(si, di);
+  });
+
+  $('#grid').addEventListener('contextmenu', (e) => {
+    const nameTd = e.target.closest('tbody td.col-name');
+    if (nameTd) {
+      e.preventDefault();
+      openAllowMenu(e.clientX, e.clientY, +nameTd.dataset.si);
+      return;
+    }
+    const td = e.target.closest('td.cell');
+    if (!td) return;
+    e.preventDefault();
+    openMenu(e.clientX, e.clientY, +td.dataset.si, +td.dataset.di);
+  });
+
+  $('#file').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      const text = String(fr.result);
+      try {
+        const isCsv = /\.csv$/i.test(file.name) || !/^\s*[{[]/.test(text);
+        if (isCsv) {
+          const { days, staff } = csvToStaffGrid(text);
+          const cal = calendarFor(S.month.be, S.month.mn);
+          loadDoc({ days, firstWeekday: cal.firstWeekday, year: S.month.be, month: S.month.mn, staff });
+          if (days !== cal.days) toast(`CSV มี ${days} วัน — เลือกเดือนให้ตรงถ้าต้องการปฏิทินถูก`);
+        } else {
+          loadDoc(JSON.parse(text));
+        }
+      } catch (err) {
+        toast('เปิดไฟล์ไม่สำเร็จ: ' + err.message);
+      }
+    };
+    fr.readAsText(file);
+    e.target.value = '';
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target && e.target.tagName);
+    if (!typing && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+    if (e.key === 'Escape') closeMenu();
+  });
+
+  // ---------------------------------------------------------------------------
+  // ตัวอย่าง (จาก test/fixtures/sample.json)
+  // ---------------------------------------------------------------------------
+  // ตัวอย่างสมมติ (anonymized) · กันยายน 2569 (ช่องที่ล็อกไว้ล่วงหน้า)
+  const SAMPLE = {
+    days: 30,
+    firstWeekday: 'อังคาร',
+    year: 2569,
+    month: 9,
+    rules: {
+      target: { 'ช': 4, 'บ': 3, 'ด': 3 },
+      offQuota: 8, offQuotaMode: 'exact', countLeaveInQuota: false,
+      maxNightToMorning: 0, maxConsecutiveNights: 2, maxConsecutiveWork: 6,
+    },
+    staff: [
+      { name: 'พยาบาล A', locked: {}, allow: ['ช'] },
+      { name: 'พยาบาล B', locked: { 3: 'ช', 4: 'R', 25: 'T' } },
+      { name: 'พยาบาล C', locked: {}, allow: ['ช', 'บ'] },
+      { name: 'พยาบาล D', locked: {
+        1: 'ด', 2: 'บ', 4: 'ช', 5: 'R', 6: 'R', 7: 'ด', 8: 'ด',
+        11: 'ช', 12: 'R', 13: 'R', 14: 'ด',
+        17: 'ช', 18: 'ช', 19: 'R', 20: 'ด', 21: 'ด',
+        26: 'ช', 27: 'R', 28: 'ด', 29: 'ด' } },
+      { name: 'พยาบาล E', locked: { 2: 'R', 9: 'ช', 12: 'ช', 13: 'R', 19: 'ช', 20: 'R' } },
+      { name: 'พยาบาล F', locked: {} },
+      { name: 'พยาบาล G', locked: { 18: 'ช', 19: 'R', 20: 'R', 21: 'ด', 22: 'ด' } },
+      { name: 'พยาบาล H', locked: {} },
+      { name: 'พยาบาล I', locked: {
+        1: 'ช', 2: 'ด', 3: 'บ', 4: 'ด', 8: 'ช', 9: 'R',
+        15: 'ช', 16: 'R', 18: 'ช', 19: 'R', 20: 'ด',
+        23: 'R', 24: 'ช', 25: 'R', 26: 'R', 27: 'R', 28: 'ด', 29: 'บ', 30: 'R' } },
+      { name: 'พยาบาล J', locked: {} },
+      { name: 'พยาบาล K', locked: {
+        2: 'ช', 3: 'R', 4: 'ด', 8: 'R', 11: 'บ', 12: 'R', 13: 'ด',
+        17: 'บ', 18: 'R', 19: 'ด',
+        24: 'ช', 25: 'R', 26: 'R', 27: 'R', 28: 'V', 29: 'V', 30: 'V' } },
+      { name: 'พยาบาล L', locked: {} },
+      { name: 'พยาบาล M', locked: {} },
+      { name: 'พยาบาล N', locked: {
+        2: 'ด', 5: 'ช', 6: 'R', 11: 'ด', 13: 'ช', 14: 'R', 15: 'R',
+        16: 'V', 17: 'V', 18: 'V', 19: 'V', 20: 'V',
+        21: 'ช', 29: 'ช', 30: 'R' } },
+    ],
+  };
+
+  initMonthUI();
+  S.rules = mergeRules({});
+  S.roster = blankRoster(S.month.be, S.month.mn, DEFAULT_ROWS);
+  initRuleUI();
+  render();
+})();
+</script>
+</body>
+</html>

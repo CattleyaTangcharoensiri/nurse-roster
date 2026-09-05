@@ -1,0 +1,11 @@
+{
+  "name": "nurse-roster",
+  "version": "0.1.0",
+  "description": "เครื่องมือจัดตารางเวรพยาบาล — ตรวจ / วิเคราะห์ / จัด (offline, ไฟล์เดียว)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "build": "node build.mjs"
+  }
+}

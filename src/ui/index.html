@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>จัดตารางเวรพยาบาล</title>
+<style>/*__CSS__*/</style>
+</head>
+<body>
+<div class="app">
+  <header class="toolbar">
+    <div class="title" id="title">จัดตารางเวรพยาบาล</div>
+    <div class="monthpick">
+      <button class="btn nav" data-act="prevMonth" title="เดือนก่อนหน้า" aria-label="เดือนก่อนหน้า">‹</button>
+      <select id="selMonth" title="เดือน"></select>
+      <input id="selYear" type="number" min="2500" max="2650" step="1" title="พ.ศ.">
+      <button class="btn nav" data-act="nextMonth" title="เดือนถัดไป" aria-label="เดือนถัดไป">›</button>
+    </div>
+    <div class="rulepick" title="จำนวนคนต่อกะต่อวัน">
+      <span>คน/กะ</span>
+      <label>ช <input id="selTargetCh" type="number" min="0" max="99" step="1"></label>
+      <label>บ <input id="selTargetB" type="number" min="0" max="99" step="1"></label>
+      <label>ด <input id="selTargetD" type="number" min="0" max="99" step="1"></label>
+    </div>
+    <div class="rulepick" title="วันหยุด O+R ต่อคน">
+      <span>หยุด O+R/คน</span>
+      <input id="selQuota" type="number" min="0" max="31" step="1">
+      <label><input id="selExact" type="checkbox"> เป๊ะ (ห้ามขาด/เกิน)</label>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn" data-act="addStaff">+ พยาบาล</button>
+    <button class="btn" data-act="sample">โหลดตัวอย่าง</button>
+    <button class="btn" data-act="open">เปิดไฟล์ (JSON/CSV)</button>
+    <button class="btn" data-act="save">บันทึก JSON</button>
+    <button class="btn" data-act="exportXlsx">ออก Excel</button>
+    <button class="btn" data-act="exportCsv">ออก CSV</button>
+    <button class="btn" data-act="print">พิมพ์</button>
+    <button class="btn" data-act="clear">ล้าง</button>
+    <button class="btn" data-act="report" id="reportBtn">รายงาน</button>
+    <button class="btn btn-primary" data-act="solve" id="solveBtn">จัดตารางอัตโนมัติ</button>
+  </header>
+
+  <div class="legend" id="legend"></div>
+
+  <main class="table-wrap">
+    <div class="viewport" id="viewport">
+      <table class="grid" id="grid">
+        <thead></thead>
+        <tbody></tbody>
+        <tfoot></tfoot>
+      </table>
+      <div class="empty" id="empty">
+        <p>ไม่มีแถวพยาบาล</p>
+        <button class="btn btn-primary" data-act="addStaff">+ เพิ่มพยาบาล</button>
+        <button class="btn" data-act="sample">โหลดตัวอย่าง</button>
+        <button class="btn" data-act="open">เปิดไฟล์ .json</button>
+      </div>
+    </div>
+  </main>
+
+  <section class="report" id="report" hidden></section>
+</div>
+
+<input type="file" id="file" accept=".json,.csv,application/json,text/csv" hidden>
+<div class="menu" id="menu" hidden></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>/*__ENGINE__*/</script>
+<script>/*__APP__*/</script>
+</body>
+</html>
