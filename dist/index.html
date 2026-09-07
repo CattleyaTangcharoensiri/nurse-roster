@@ -11,6 +11,7 @@
   --col-name: 168px;
   --col-sum: 156px;
   --col-day: 34px;
+  --report-h: 46vh;
   --line: #E2E8F0;
   --ink: #1E293B;
   --muted: #64748B;
@@ -196,12 +197,15 @@ tfoot .col-name { text-align: left; }
 
 /* ---------- REPORT ---------- */
 .report {
-  position: fixed; left: 0; right: 0; bottom: 0; height: 46%;
+  position: fixed; left: 0; right: 0; bottom: 0; height: var(--report-h);
   background: #fff; border-top: 2px solid var(--line);
   display: flex; flex-direction: column; z-index: 60;
   box-shadow: 0 -8px 24px rgba(0,0,0,.08);
 }
 .report[hidden] { display: none; }
+
+/* เปิดรายงานอยู่ = เว้นที่ด้านล่างเท่าความสูงแผง เพื่อให้เลื่อนดูตารางส่วนที่ถูกบังได้ */
+.app:has(> .report:not([hidden])) { padding-bottom: var(--report-h); }
 .report .rp-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 14px; border-bottom: 1px solid var(--line); flex: none;
@@ -262,7 +266,7 @@ td.cell { touch-action: manipulation; }
 
 /* จอเล็ก (มือถือ) */
 @media (max-width: 820px) {
-  :root { --col-name: 104px; --col-sum: 116px; --col-day: 32px; }
+  :root { --col-name: 104px; --col-sum: 116px; --col-day: 32px; --report-h: 60dvh; }
   body { font-size: 13px; }
 
   /* มือถือ: เลิกปักคอลัมน์สรุปไว้ขวา — มันไปเบียดจนเห็นแค่ 1–2 วัน
@@ -296,7 +300,6 @@ td.cell { touch-action: manipulation; }
   .viewport { overflow-x: auto; overflow-y: hidden; }
   tfoot td { position: static; }
 
-  .report { height: 80dvh; }
   .report .rp-body { grid-template-columns: 1fr; }
 }
 
