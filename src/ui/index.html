@@ -9,40 +9,52 @@
 <body>
 <div class="app">
   <header class="toolbar">
-    <div class="title" id="title">จัดตารางเวรพยาบาล</div>
-    <div class="monthpick">
-      <button class="btn nav" data-act="prevMonth" title="เดือนก่อนหน้า" aria-label="เดือนก่อนหน้า">‹</button>
-      <select id="selMonth" title="เดือน"></select>
-      <input id="selYear" type="number" min="2500" max="2650" step="1" title="พ.ศ.">
-      <button class="btn nav" data-act="nextMonth" title="เดือนถัดไป" aria-label="เดือนถัดไป">›</button>
+    <div class="tb-row tb-setup">
+      <div class="tb-title" id="title">จัดตารางเวรพยาบาล</div>
+      <div class="tb-group monthpick">
+        <button class="btn nav" data-act="prevMonth" title="เดือนก่อนหน้า" aria-label="เดือนก่อนหน้า">‹</button>
+        <select id="selMonth" title="เดือน"></select>
+        <input id="selYear" type="number" min="2500" max="2650" step="1" title="พ.ศ.">
+        <button class="btn nav" data-act="nextMonth" title="เดือนถัดไป" aria-label="เดือนถัดไป">›</button>
+      </div>
+      <div class="tb-group rulepick" title="จำนวนคนต่อกะต่อวัน">
+        <span class="lbl">คน/กะ</span>
+        <label>ช <input id="selTargetCh" type="number" min="0" max="99" step="1"></label>
+        <label>บ <input id="selTargetB" type="number" min="0" max="99" step="1"></label>
+        <label>ด <input id="selTargetD" type="number" min="0" max="99" step="1"></label>
+      </div>
+      <div class="tb-group rulepick" title="วันหยุด O+R ต่อคน">
+        <span class="lbl">หยุด/คน</span>
+        <input id="selQuota" type="number" min="0" max="31" step="1">
+        <label class="chk"><input id="selExact" type="checkbox"> เป๊ะ</label>
+      </div>
+      <div class="tb-group rulepick" title="เพดานจำนวนวันที่ขึ้น 2 กะ/วัน ต่อคน">
+        <span class="lbl">2 กะ/วัน ≤</span>
+        <input id="selMaxDbl" type="number" min="0" max="15" step="1">
+      </div>
     </div>
-    <div class="rulepick" title="จำนวนคนต่อกะต่อวัน">
-      <span>คน/กะ</span>
-      <label>ช <input id="selTargetCh" type="number" min="0" max="99" step="1"></label>
-      <label>บ <input id="selTargetB" type="number" min="0" max="99" step="1"></label>
-      <label>ด <input id="selTargetD" type="number" min="0" max="99" step="1"></label>
+    <div class="tb-row tb-actions">
+      <div class="tb-group">
+        <button class="btn" data-act="addStaff">+ พยาบาล</button>
+        <button class="btn" data-act="sample">โหลดตัวอย่าง</button>
+      </div>
+      <div class="tb-group">
+        <button class="btn" data-act="open">เปิดไฟล์</button>
+        <button class="btn" data-act="save">บันทึก JSON</button>
+        <button class="btn" data-act="exportXlsx">ออก Excel</button>
+        <button class="btn" data-act="exportCsv">ออก CSV</button>
+        <button class="btn" data-act="print">พิมพ์</button>
+      </div>
+      <div class="tb-group">
+        <button class="btn btn-ghost" data-act="clear">ล้าง</button>
+      </div>
+      <div class="tb-spacer"></div>
+      <div class="tb-group">
+        <a class="btn btn-ghost" href="howto.html" target="_blank" rel="noopener">วิธีใช้</a>
+        <button class="btn" data-act="report" id="reportBtn">รายงาน</button>
+        <button class="btn btn-primary" data-act="solve" id="solveBtn">จัดตารางอัตโนมัติ</button>
+      </div>
     </div>
-    <div class="rulepick" title="วันหยุด O+R ต่อคน">
-      <span>หยุด O+R/คน</span>
-      <input id="selQuota" type="number" min="0" max="31" step="1">
-      <label><input id="selExact" type="checkbox"> เป๊ะ (ห้ามขาด/เกิน)</label>
-    </div>
-    <div class="rulepick" title="เพดานจำนวนวันที่ขึ้น 2 กะ/วัน ต่อคน">
-      <span>2 กะ/วัน ≤/คน</span>
-      <input id="selMaxDbl" type="number" min="0" max="15" step="1">
-    </div>
-    <div class="spacer"></div>
-    <a class="btn" href="howto.html" target="_blank" rel="noopener">วิธีใช้</a>
-    <button class="btn" data-act="addStaff">+ พยาบาล</button>
-    <button class="btn" data-act="sample">โหลดตัวอย่าง</button>
-    <button class="btn" data-act="open">เปิดไฟล์ (JSON/CSV)</button>
-    <button class="btn" data-act="save">บันทึก JSON</button>
-    <button class="btn" data-act="exportXlsx">ออก Excel</button>
-    <button class="btn" data-act="exportCsv">ออก CSV</button>
-    <button class="btn" data-act="print">พิมพ์</button>
-    <button class="btn" data-act="clear">ล้าง</button>
-    <button class="btn" data-act="report" id="reportBtn">รายงาน</button>
-    <button class="btn btn-primary" data-act="solve" id="solveBtn">จัดตารางอัตโนมัติ</button>
   </header>
 
   <div class="legend" id="legend"></div>

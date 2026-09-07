@@ -38,37 +38,55 @@ button { font-family: inherit; }
 .app { display: flex; flex-direction: column; min-height: 100dvh; }
 
 /* ---------- TOOLBAR ---------- */
+/* สองแถว: บน = ตั้งค่า (เดือน + กติกา), ล่าง = ปุ่มสั่งงาน (จัดกลุ่มไว้)
+   คั่นกลุ่มด้วยเส้นบาง ๆ ไม่ใช่ระยะห่างมั่ว ๆ */
 .toolbar {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  display: flex; flex-direction: column; gap: 8px;
   padding: 10px 14px; border-bottom: 1px solid var(--line); flex: none;
 }
-.toolbar .title { font-size: 15px; font-weight: bold; }
-.toolbar .spacer { flex: 1; }
+.tb-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tb-group { display: flex; align-items: center; gap: 6px; }
+/* เส้นคั่นระหว่างกลุ่มที่อยู่ติดกันในแถวเดียวกัน */
+.tb-row > .tb-group + .tb-group::before {
+  content: ""; align-self: stretch; width: 1px; margin: 2px 4px 2px 0;
+  background: var(--line);
+}
+.tb-spacer { flex: 1 1 12px; }
+
+.tb-title {
+  font-size: 14px; font-weight: bold; letter-spacing: .01em;
+  padding-right: 10px; margin-right: 2px; border-right: 1px solid var(--line);
+}
+
 .btn {
   padding: 7px 12px; border: 1px solid var(--line); border-radius: 5px;
   background: #fff; color: var(--ink); cursor: pointer; font-size: 12px; font-weight: bold;
+  white-space: nowrap;
 }
 .btn:hover { background: #F8FAFC; }
 a.btn { display: inline-block; text-decoration: none; }
-.btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+.btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); padding: 7px 16px; }
 .btn-primary:hover { background: var(--blue-dark); }
+.btn-ghost { color: var(--muted); border-color: transparent; }
+.btn-ghost:hover { border-color: var(--line); background: #F8FAFC; color: var(--ink); }
 .btn.on { background: var(--blue); color: #fff; border-color: var(--blue); }
 .btn.nav { padding: 6px 9px; font-size: 15px; line-height: 1; color: var(--blue); }
 
-.monthpick { display: flex; align-items: center; gap: 4px; margin-left: 14px; }
 .monthpick select, .monthpick input {
   font-family: inherit; font-size: 12px; font-weight: bold; color: var(--ink);
   border: 1px solid var(--line); border-radius: 5px; padding: 6px 6px; background: #fff;
 }
-.monthpick select { min-width: 96px; }
-.monthpick input { width: 62px; text-align: center; }
+.monthpick select { min-width: 92px; }
+.monthpick input { width: 60px; text-align: center; }
 
-.rulepick { display: flex; align-items: center; gap: 6px; margin-left: 12px; font-size: 12px; color: var(--muted); }
+.rulepick { font-size: 12px; color: var(--muted); }
+.rulepick .lbl { font-weight: bold; }
 .rulepick input[type="number"] {
-  width: 46px; text-align: center; font-family: inherit; font-size: 12px; font-weight: bold;
+  width: 44px; text-align: center; font-family: inherit; font-size: 12px; font-weight: bold;
   color: var(--ink); border: 1px solid var(--line); border-radius: 5px; padding: 6px 4px;
 }
 .rulepick label { display: flex; align-items: center; gap: 3px; cursor: pointer; }
+.rulepick label.chk { color: var(--ink); }
 
 /* ---------- LEGEND ---------- */
 .legend {
@@ -275,11 +293,13 @@ td.cell { touch-action: manipulation; }
     position: static; z-index: auto;
   }
 
-  .toolbar { gap: 6px; padding: 8px 10px; }
-  .toolbar .title { width: 100%; font-size: 14px; margin-bottom: 2px; }
-  .toolbar .spacer { display: none; }
-  .monthpick, .rulepick { margin-left: 0; }
-  .rulepick { width: 100%; flex-wrap: wrap; }
+  .toolbar { gap: 8px; padding: 8px 10px; }
+  .tb-row { gap: 6px 8px; }
+  .tb-title { width: 100%; border-right: none; padding-right: 0; font-size: 14px; }
+  .tb-spacer { display: none; }
+  /* มือถือ: เลิกเส้นคั่นแนวตั้ง กลุ่มขึ้นบรรทัดใหม่อยู่แล้ว */
+  .tb-row > .tb-group + .tb-group::before { display: none; }
+  .tb-group { flex-wrap: wrap; }
   .btn { padding: 8px 10px; }
 
   /* ปุ่ม/ช่องกรอก ≥16px กัน iOS ซูมตอนโฟกัส */
@@ -314,40 +334,52 @@ td.cell { touch-action: manipulation; }
 <body>
 <div class="app">
   <header class="toolbar">
-    <div class="title" id="title">จัดตารางเวรพยาบาล</div>
-    <div class="monthpick">
-      <button class="btn nav" data-act="prevMonth" title="เดือนก่อนหน้า" aria-label="เดือนก่อนหน้า">‹</button>
-      <select id="selMonth" title="เดือน"></select>
-      <input id="selYear" type="number" min="2500" max="2650" step="1" title="พ.ศ.">
-      <button class="btn nav" data-act="nextMonth" title="เดือนถัดไป" aria-label="เดือนถัดไป">›</button>
+    <div class="tb-row tb-setup">
+      <div class="tb-title" id="title">จัดตารางเวรพยาบาล</div>
+      <div class="tb-group monthpick">
+        <button class="btn nav" data-act="prevMonth" title="เดือนก่อนหน้า" aria-label="เดือนก่อนหน้า">‹</button>
+        <select id="selMonth" title="เดือน"></select>
+        <input id="selYear" type="number" min="2500" max="2650" step="1" title="พ.ศ.">
+        <button class="btn nav" data-act="nextMonth" title="เดือนถัดไป" aria-label="เดือนถัดไป">›</button>
+      </div>
+      <div class="tb-group rulepick" title="จำนวนคนต่อกะต่อวัน">
+        <span class="lbl">คน/กะ</span>
+        <label>ช <input id="selTargetCh" type="number" min="0" max="99" step="1"></label>
+        <label>บ <input id="selTargetB" type="number" min="0" max="99" step="1"></label>
+        <label>ด <input id="selTargetD" type="number" min="0" max="99" step="1"></label>
+      </div>
+      <div class="tb-group rulepick" title="วันหยุด O+R ต่อคน">
+        <span class="lbl">หยุด/คน</span>
+        <input id="selQuota" type="number" min="0" max="31" step="1">
+        <label class="chk"><input id="selExact" type="checkbox"> เป๊ะ</label>
+      </div>
+      <div class="tb-group rulepick" title="เพดานจำนวนวันที่ขึ้น 2 กะ/วัน ต่อคน">
+        <span class="lbl">2 กะ/วัน ≤</span>
+        <input id="selMaxDbl" type="number" min="0" max="15" step="1">
+      </div>
     </div>
-    <div class="rulepick" title="จำนวนคนต่อกะต่อวัน">
-      <span>คน/กะ</span>
-      <label>ช <input id="selTargetCh" type="number" min="0" max="99" step="1"></label>
-      <label>บ <input id="selTargetB" type="number" min="0" max="99" step="1"></label>
-      <label>ด <input id="selTargetD" type="number" min="0" max="99" step="1"></label>
+    <div class="tb-row tb-actions">
+      <div class="tb-group">
+        <button class="btn" data-act="addStaff">+ พยาบาล</button>
+        <button class="btn" data-act="sample">โหลดตัวอย่าง</button>
+      </div>
+      <div class="tb-group">
+        <button class="btn" data-act="open">เปิดไฟล์</button>
+        <button class="btn" data-act="save">บันทึก JSON</button>
+        <button class="btn" data-act="exportXlsx">ออก Excel</button>
+        <button class="btn" data-act="exportCsv">ออก CSV</button>
+        <button class="btn" data-act="print">พิมพ์</button>
+      </div>
+      <div class="tb-group">
+        <button class="btn btn-ghost" data-act="clear">ล้าง</button>
+      </div>
+      <div class="tb-spacer"></div>
+      <div class="tb-group">
+        <a class="btn btn-ghost" href="howto.html" target="_blank" rel="noopener">วิธีใช้</a>
+        <button class="btn" data-act="report" id="reportBtn">รายงาน</button>
+        <button class="btn btn-primary" data-act="solve" id="solveBtn">จัดตารางอัตโนมัติ</button>
+      </div>
     </div>
-    <div class="rulepick" title="วันหยุด O+R ต่อคน">
-      <span>หยุด O+R/คน</span>
-      <input id="selQuota" type="number" min="0" max="31" step="1">
-      <label><input id="selExact" type="checkbox"> เป๊ะ (ห้ามขาด/เกิน)</label>
-    </div>
-    <div class="rulepick" title="เพดานจำนวนวันที่ขึ้น 2 กะ/วัน ต่อคน">
-      <span>2 กะ/วัน ≤/คน</span>
-      <input id="selMaxDbl" type="number" min="0" max="15" step="1">
-    </div>
-    <div class="spacer"></div>
-    <a class="btn" href="howto.html" target="_blank" rel="noopener">วิธีใช้</a>
-    <button class="btn" data-act="addStaff">+ พยาบาล</button>
-    <button class="btn" data-act="sample">โหลดตัวอย่าง</button>
-    <button class="btn" data-act="open">เปิดไฟล์ (JSON/CSV)</button>
-    <button class="btn" data-act="save">บันทึก JSON</button>
-    <button class="btn" data-act="exportXlsx">ออก Excel</button>
-    <button class="btn" data-act="exportCsv">ออก CSV</button>
-    <button class="btn" data-act="print">พิมพ์</button>
-    <button class="btn" data-act="clear">ล้าง</button>
-    <button class="btn" data-act="report" id="reportBtn">รายงาน</button>
-    <button class="btn btn-primary" data-act="solve" id="solveBtn">จัดตารางอัตโนมัติ</button>
   </header>
 
   <div class="legend" id="legend"></div>
