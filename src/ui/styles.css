@@ -191,15 +191,12 @@ td.cell.locked::after {
 }
 td.cell.bad .chip { text-decoration: underline wavy var(--red); text-underline-offset: 3px; }
 
+/* แถวนับด้านล่าง — เลื่อนไปกับตารางตามปกติ ไม่ปักไว้ท้ายจอ
+   (คอลัมน์ชื่อยังปักซ้ายจาก .col-name) */
 tfoot td {
-  position: sticky; z-index: 20; background: #F8FAFC;
+  background: #F8FAFC;
   height: 24px; font-size: 11px; font-weight: bold;
 }
-tfoot tr:nth-child(1) td { bottom: 96px; }
-tfoot tr:nth-child(2) td { bottom: 72px; }
-tfoot tr:nth-child(3) td { bottom: 48px; }
-tfoot tr:nth-child(4) td { bottom: 24px; }
-tfoot tr:nth-child(5) td { bottom: 0; }
 tfoot .col-name { text-align: left; }
 .cnt.under { color: var(--red); background: var(--weekend); }
 .cnt.over  { color: #fff; background: var(--red); }
@@ -318,7 +315,6 @@ td.cell { touch-action: manipulation; }
   .app { height: auto; min-height: 100dvh; overflow: visible; }
   .table-wrap { flex: none; min-height: 0; }
   .viewport { height: auto; overflow-x: auto; overflow-y: hidden; }
-  tfoot td { position: static; }
 
   .report .rp-body { grid-template-columns: 1fr; }
 }
