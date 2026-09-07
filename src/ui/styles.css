@@ -219,8 +219,9 @@ tfoot .col-name { text-align: left; }
 }
 .report[hidden] { display: none; }
 
-/* เปิดรายงานอยู่ = เว้นที่ท้ายตารางเท่าความสูงแผง เพื่อเลื่อนดูแถวที่ถูกบังได้ */
-.app:has(> .report:not([hidden])) .viewport { padding-bottom: var(--report-h); }
+/* เปิดรายงานอยู่ = เว้นที่ท้ายตารางเท่าความสูงแผง เพื่อเลื่อนดูแถวที่ถูกบังได้
+   (คลาส .report-open เซ็ตจาก JS — ไม่พึ่ง :has() เผื่อเบราว์เซอร์เก่า) */
+.app.report-open .viewport { padding-bottom: var(--report-h); }
 .report .rp-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 14px; border-bottom: 1px solid var(--line); flex: none;

@@ -225,8 +225,9 @@ tfoot .col-name { text-align: left; }
 }
 .report[hidden] { display: none; }
 
-/* เปิดรายงานอยู่ = เว้นที่ท้ายตารางเท่าความสูงแผง เพื่อเลื่อนดูแถวที่ถูกบังได้ */
-.app:has(> .report:not([hidden])) .viewport { padding-bottom: var(--report-h); }
+/* เปิดรายงานอยู่ = เว้นที่ท้ายตารางเท่าความสูงแผง เพื่อเลื่อนดูแถวที่ถูกบังได้
+   (คลาส .report-open เซ็ตจาก JS — ไม่พึ่ง :has() เผื่อเบราว์เซอร์เก่า) */
+.app.report-open .viewport { padding-bottom: var(--report-h); }
 .report .rp-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 14px; border-bottom: 1px solid var(--line); flex: none;
@@ -761,6 +762,31 @@ function totalSlotsNeeded(roster, rules) {
     for (const s of rules.activeShifts) total += bandForDay(roster, rules, d, s).min;
   }
   return total;
+}
+
+/**
+ * "ทุกคนหยุดตรงโควตา Q" ต้องเวรคู่กี่ครั้ง + เพดานรวมรับได้เท่าไร
+ *   doublesNeeded < 0            → คนล้น (บางคนต้องหยุดเกิน Q)
+ *   doublesNeeded > doubleCapacity → คนไม่พอ (เวรคู่ไม่พอปิดช่องว่างวันหยุด)
+ *   ระหว่างนั้น                    → ทำได้
+ * ใช้ร่วมกันระหว่าง analyze.advise() (การ์ดคำแนะนำ) กับ solver.restViaDoubles() (เกต)
+ */
+function doublesFeasibility(roster, rules) {
+  const D = roster.days;
+  const N = roster.staff.length;
+  let leave = 0;
+  let training = 0;
+  for (const row of roster.grid) {
+    for (const c of row) {
+      if (c.off === OFF.LEAVE) leave += 1;
+      else if (c.off === OFF.TRAINING) training += 1;
+    }
+  }
+  const away = training + (rules.countLeaveInQuota ? 0 : leave);
+  const slotsNeeded = totalSlotsNeeded(roster, rules);
+  const doublesNeeded = slotsNeeded - (N * (D - rules.offQuota) - away);
+  const doubleCapacity = N * Math.max(0, rules.maxDoublesPerPerson);
+  return { slotsNeeded, away, leave, training, doublesNeeded, doubleCapacity };
 }
 
 
@@ -1342,21 +1368,10 @@ function advise(roster, rules) {
   const N = roster.staff.length;
   const Q = rules.offQuota;
   const cap = Math.max(0, rules.maxDoublesPerPerson);
-  const S = totalSlotsNeeded(roster, rules); // กะที่ต้องการทั้งเดือน (คิด override ครบ)
 
-  let leave = 0;
-  let training = 0;
-  for (const row of roster.grid) {
-    for (const c of row) {
-      if (c.off === OFF.LEAVE) leave += 1;
-      else if (c.off === OFF.TRAINING) training += 1;
-    }
-  }
-  const away = training + (rules.countLeaveInQuota ? 0 : leave);
-
+  // สูตรกลาง (model.js) — solver.restViaDoubles ใช้ตัวเดียวกันเป็นเกต
+  const { slotsNeeded: S, away, leave, training, doublesNeeded, doubleCapacity } = doublesFeasibility(roster, rules);
   const doublesAt = (n) => S - (n * (D - Q) - away);
-  const doublesNeeded = doublesAt(N);
-  const doubleCapacity = N * cap;
 
   // ช่วงจำนวนคนที่ "ทุกคนหยุด Q พอดี" เป็นไปได้
   const nMax = D - Q > 0 ? Math.floor((S + away) / (D - Q)) : 0;          // เกินนี้ = คนล้น
@@ -1949,26 +1964,13 @@ function restViaDoubles(R, rules) {
   const N = R.staff.length;
   const active = rules.activeShifts.filter((s) => isShiftActive(rules, s));
 
-  // "ทุกคนหยุดตรงโควตา" เป็นไปได้ไหมด้วยการเวรคู่?
-  //   เวรคู่ที่ต้องใช้ = กะที่ต้องการทั้งเดือน − วันทำงานรวมเมื่อทุกคนหยุด Q
-  //   < 0  → คนล้น (บางคนต้องหยุดเกิน Q) — ดันวันหยุดไม่ได้อยู่ดี
-  //   > เพดานรวม → คนไม่พอจริง — ปล่อยให้ report โชว์ gap + คนทำงานเยอะ ดีกว่าโชว์หยุดเต็มวอร์ดว่าง
-  //   นอกนั้น → ทำได้ ลุยเลย (ข้าม "วันที่ยังขาดคน" ไว้ ไม่ไปยุ่งกับกะวันนั้น —
+  // "ทุกคนหยุดตรงโควตา" เป็นไปได้ไหมด้วยการเวรคู่? (สูตรกลาง — ตัวเดียวกับการ์ดคำแนะนำ)
+  //   doublesNeeded < 0        → คนล้น (บางคนต้องหยุดเกิน Q) — ดันวันหยุดไม่ได้อยู่ดี
+  //   > เพดานรวม               → คนไม่พอจริง — ปล่อยให้ report โชว์ gap + คนทำงานเยอะ
+  //   นอกนั้น                   → ทำได้ ลุยเลย (ข้าม "วันที่ยังขาดคน" ไว้ ไม่ไปยุ่งกับกะวันนั้น —
   //   applyMove เป็นการสลับในวันเดียว coverage คงเดิม จึงไม่ทำ gap แย่ลง)
-  let slotsNeeded = 0;
-  for (let d = 0; d < D; d++) for (const s of active) slotsNeeded += bandForDay(R, rules, d, s).min;
-  let leaveT = 0;
-  let trainT = 0;
-  for (let i = 0; i < N; i++) {
-    for (const c of R.grid[i]) {
-      if (c.off === OFF.LEAVE) leaveT += 1;
-      else if (c.off === OFF.TRAINING) trainT += 1;
-    }
-  }
-  const away = trainT + (rules.countLeaveInQuota ? 0 : leaveT);
-  const doublesNeededGlobal = slotsNeeded - (N * (D - rules.offQuota) - away);
-  const doubleCapGlobal = N * Math.max(0, rules.maxDoublesPerPerson);
-  if (doublesNeededGlobal < 0 || doublesNeededGlobal > doubleCapGlobal) return;
+  const { doublesNeeded, doubleCapacity } = doublesFeasibility(R, rules);
+  if (doublesNeeded < 0 || doublesNeeded > doubleCapacity) return;
 
   const dayCovered = [];
   for (let d = 0; d < D; d++) {
@@ -3011,6 +3013,7 @@ function rosterToXlsx(roster, rules, report) {
       grid.style.display = 'none';
       $('#report').hidden = true;
       $('#reportBtn').classList.remove('on');
+      syncReportOpen();
       $('#title').textContent = r ? titleText(r) : 'จัดตารางเวรพยาบาล';
       return;
     }
@@ -3200,10 +3203,15 @@ function rosterToXlsx(roster, rules, report) {
   // ---------------------------------------------------------------------------
   // REPORT panel
   // ---------------------------------------------------------------------------
+  function syncReportOpen() {
+    document.querySelector('.app').classList.toggle('report-open', !$('#report').hidden);
+  }
+
   function toggleReport() {
     const p = $('#report');
     p.hidden = !p.hidden;
     $('#reportBtn').classList.toggle('on', !p.hidden);
+    syncReportOpen();
     if (!p.hidden) renderReport();
   }
 

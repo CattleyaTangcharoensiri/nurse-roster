@@ -364,6 +364,7 @@
       grid.style.display = 'none';
       $('#report').hidden = true;
       $('#reportBtn').classList.remove('on');
+      syncReportOpen();
       $('#title').textContent = r ? titleText(r) : 'จัดตารางเวรพยาบาล';
       return;
     }
@@ -553,10 +554,15 @@
   // ---------------------------------------------------------------------------
   // REPORT panel
   // ---------------------------------------------------------------------------
+  function syncReportOpen() {
+    document.querySelector('.app').classList.toggle('report-open', !$('#report').hidden);
+  }
+
   function toggleReport() {
     const p = $('#report');
     p.hidden = !p.hidden;
     $('#reportBtn').classList.toggle('on', !p.hidden);
+    syncReportOpen();
     if (!p.hidden) renderReport();
   }
 

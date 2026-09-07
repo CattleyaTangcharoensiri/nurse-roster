@@ -348,3 +348,28 @@ export function totalSlotsNeeded(roster, rules) {
   }
   return total;
 }
+
+/**
+ * "ทุกคนหยุดตรงโควตา Q" ต้องเวรคู่กี่ครั้ง + เพดานรวมรับได้เท่าไร
+ *   doublesNeeded < 0            → คนล้น (บางคนต้องหยุดเกิน Q)
+ *   doublesNeeded > doubleCapacity → คนไม่พอ (เวรคู่ไม่พอปิดช่องว่างวันหยุด)
+ *   ระหว่างนั้น                    → ทำได้
+ * ใช้ร่วมกันระหว่าง analyze.advise() (การ์ดคำแนะนำ) กับ solver.restViaDoubles() (เกต)
+ */
+export function doublesFeasibility(roster, rules) {
+  const D = roster.days;
+  const N = roster.staff.length;
+  let leave = 0;
+  let training = 0;
+  for (const row of roster.grid) {
+    for (const c of row) {
+      if (c.off === OFF.LEAVE) leave += 1;
+      else if (c.off === OFF.TRAINING) training += 1;
+    }
+  }
+  const away = training + (rules.countLeaveInQuota ? 0 : leave);
+  const slotsNeeded = totalSlotsNeeded(roster, rules);
+  const doublesNeeded = slotsNeeded - (N * (D - rules.offQuota) - away);
+  const doubleCapacity = N * Math.max(0, rules.maxDoublesPerPerson);
+  return { slotsNeeded, away, leave, training, doublesNeeded, doubleCapacity };
+}

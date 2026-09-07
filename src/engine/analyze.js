@@ -20,7 +20,7 @@ import {
   isRest, isLeave, isTraining, isWorking, isEmpty,
   isWeekend,
   bandForDay, isShiftActive, isDoubleAllowed, formatDoublePattern,
-  staffAllowsShift, totalSlotsNeeded,
+  staffAllowsShift, doublesFeasibility,
 } from './model.js';
 
 // ---------------------------------------------------------------------------
@@ -388,21 +388,10 @@ export function advise(roster, rules) {
   const N = roster.staff.length;
   const Q = rules.offQuota;
   const cap = Math.max(0, rules.maxDoublesPerPerson);
-  const S = totalSlotsNeeded(roster, rules); // กะที่ต้องการทั้งเดือน (คิด override ครบ)
 
-  let leave = 0;
-  let training = 0;
-  for (const row of roster.grid) {
-    for (const c of row) {
-      if (c.off === OFF.LEAVE) leave += 1;
-      else if (c.off === OFF.TRAINING) training += 1;
-    }
-  }
-  const away = training + (rules.countLeaveInQuota ? 0 : leave);
-
+  // สูตรกลาง (model.js) — solver.restViaDoubles ใช้ตัวเดียวกันเป็นเกต
+  const { slotsNeeded: S, away, leave, training, doublesNeeded, doubleCapacity } = doublesFeasibility(roster, rules);
   const doublesAt = (n) => S - (n * (D - Q) - away);
-  const doublesNeeded = doublesAt(N);
-  const doubleCapacity = N * cap;
 
   // ช่วงจำนวนคนที่ "ทุกคนหยุด Q พอดี" เป็นไปได้
   const nMax = D - Q > 0 ? Math.floor((S + away) / (D - Q)) : 0;          // เกินนี้ = คนล้น
