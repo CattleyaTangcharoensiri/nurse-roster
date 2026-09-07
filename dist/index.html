@@ -32,7 +32,9 @@ body {
 }
 button { font-family: inherit; }
 
-.app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+/* หน้าเว็บเลื่อนได้ตามปกติ (แนวตั้ง+แนวนอน) ทั้งบนคอมและมือถือ
+   — หัวตาราง (วันที่) ปักบน, คอลัมน์ชื่อปักซ้าย, แถวนับปักล่าง เทียบกับหน้าต่าง */
+.app { display: flex; flex-direction: column; min-height: 100dvh; }
 
 /* ---------- TOOLBAR ---------- */
 .toolbar {
@@ -89,8 +91,8 @@ a.btn { display: inline-block; text-decoration: none; }
 .t-T   { background: #DCFCE7; color: #166534; }
 
 /* ---------- TABLE ---------- */
-.table-wrap { flex: 1; position: relative; overflow: hidden; }
-.viewport { height: 100%; overflow: auto; outline: none; }
+.table-wrap { flex: 1; position: relative; }
+.viewport { outline: none; }
 .grid { border-collapse: separate; border-spacing: 0; border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .grid th, .grid td {
   border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
@@ -194,7 +196,7 @@ tfoot .col-name { text-align: left; }
 
 /* ---------- REPORT ---------- */
 .report {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 46%;
+  position: fixed; left: 0; right: 0; bottom: 0; height: 46%;
   background: #fff; border-top: 2px solid var(--line);
   display: flex; flex-direction: column; z-index: 60;
   box-shadow: 0 -8px 24px rgba(0,0,0,.08);
@@ -289,15 +291,12 @@ td.cell { touch-action: manipulation; }
   .nm-1 { font-size: 12px; }
   .rowcfg { right: 20px; }
 
-  /* มือถือ: ให้ทั้งหน้าเลื่อนขึ้น–ลงได้ แทนที่จะบีบตารางไว้ในกรอบเดียว
-     — แนวตั้งเลื่อนที่ระดับหน้าเว็บ, แนวนอน (ช่องวัน) เลื่อนในตัวตาราง */
-  .app { height: auto; min-height: 100dvh; overflow: visible; }
-  .table-wrap { flex: none; overflow: visible; }
-  .viewport { height: auto; overflow-x: auto; overflow-y: hidden; }
+  /* มือถือ: แนวตั้งเลื่อนที่ระดับหน้าเว็บ, แนวนอน (ช่องวัน) เลื่อนในตัวตาราง
+     — กันไม่ให้ทั้งหน้าเลื่อนแนวนอน */
+  .viewport { overflow-x: auto; overflow-y: hidden; }
   tfoot td { position: static; }
 
-  /* รายงานยังเป็นแผงลอยทับหน้าจอ ไม่เลื่อนหายไปกับหน้า */
-  .report { position: fixed; height: 80dvh; }
+  .report { height: 80dvh; }
   .report .rp-body { grid-template-columns: 1fr; }
 }
 
