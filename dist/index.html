@@ -33,9 +33,10 @@ body {
 }
 button { font-family: inherit; }
 
-/* หน้าเว็บเลื่อนได้ตามปกติ (แนวตั้ง+แนวนอน) ทั้งบนคอมและมือถือ
-   — หัวตาราง (วันที่) ปักบน, คอลัมน์ชื่อปักซ้าย, แถวนับปักล่าง เทียบกับหน้าต่าง */
-.app { display: flex; flex-direction: column; min-height: 100dvh; }
+/* คอม: กรอบตายตัวเต็มจอ ตารางเลื่อนอยู่ข้างใน (viewport เป็นตัวเลื่อน)
+   → หัวตาราง/คอลัมน์ชื่อ/แถวนับ sticky ทำงานครบ
+   มือถือ: สลับเป็นทั้งหน้าเลื่อน (ดู @media ด้านล่าง) */
+.app { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
 
 /* ---------- TOOLBAR ---------- */
 /* สองแถว: บน = ตั้งค่า (เดือน + กติกา), ล่าง = ปุ่มสั่งงาน (จัดกลุ่มไว้)
@@ -110,8 +111,8 @@ a.btn { display: inline-block; text-decoration: none; }
 .t-T   { background: #DCFCE7; color: #166534; }
 
 /* ---------- TABLE ---------- */
-.table-wrap { flex: 1; position: relative; }
-.viewport { outline: none; }
+.table-wrap { flex: 1 1 0; min-height: 0; position: relative; overflow: hidden; }
+.viewport { height: 100%; overflow: auto; outline: none; }
 .grid { border-collapse: separate; border-spacing: 0; border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .grid th, .grid td {
   border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
@@ -134,7 +135,9 @@ thead th {
   width: var(--col-name); min-width: var(--col-name); max-width: var(--col-name);
   text-align: left; padding: 5px 8px 5px 12px;
 }
-tbody .col-name { position: relative; }
+/* ยังปัก sticky อยู่ (ไม่ทับด้วย position: relative) — sticky ก็เป็น containing block
+   ให้ปุ่มลบ/ตั้งค่าที่ absolute เกาะได้อยู่แล้ว */
+tbody .col-name { position: sticky; }
 thead .col-name, tfoot .col-name { z-index: 30; background: #F8FAFC; }
 .nm-1 { display: block; font-size: 13px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 44px; cursor: text; }
 .rowdel {
@@ -222,8 +225,8 @@ tfoot .col-name { text-align: left; }
 }
 .report[hidden] { display: none; }
 
-/* เปิดรายงานอยู่ = เว้นที่ด้านล่างเท่าความสูงแผง เพื่อให้เลื่อนดูตารางส่วนที่ถูกบังได้ */
-.app:has(> .report:not([hidden])) { padding-bottom: var(--report-h); }
+/* เปิดรายงานอยู่ = เว้นที่ท้ายตารางเท่าความสูงแผง เพื่อเลื่อนดูแถวที่ถูกบังได้ */
+.app:has(> .report:not([hidden])) .viewport { padding-bottom: var(--report-h); }
 .report .rp-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 14px; border-bottom: 1px solid var(--line); flex: none;
@@ -315,9 +318,11 @@ td.cell { touch-action: manipulation; }
   .nm-1 { font-size: 12px; }
   .rowcfg { right: 20px; }
 
-  /* มือถือ: แนวตั้งเลื่อนที่ระดับหน้าเว็บ, แนวนอน (ช่องวัน) เลื่อนในตัวตาราง
-     — กันไม่ให้ทั้งหน้าเลื่อนแนวนอน */
-  .viewport { overflow-x: auto; overflow-y: hidden; }
+  /* มือถือ: ทั้งหน้าเลื่อนแนวตั้ง (แถบเครื่องมือไม่กินจอ), ตารางเลื่อนแนวนอนในตัวเอง
+     — คอลัมน์ชื่อยังปักซ้าย (sticky เทียบกับ viewport ที่เลื่อนแนวนอน) */
+  .app { height: auto; min-height: 100dvh; overflow: visible; }
+  .table-wrap { flex: none; min-height: 0; }
+  .viewport { height: auto; overflow-x: auto; overflow-y: hidden; }
   tfoot td { position: static; }
 
   .report .rp-body { grid-template-columns: 1fr; }
