@@ -283,7 +283,15 @@ td.cell { touch-action: manipulation; }
   .nm-1 { font-size: 12px; }
   .rowcfg { right: 20px; }
 
-  .report { height: 72%; }
+  /* มือถือ: ให้ทั้งหน้าเลื่อนขึ้น–ลงได้ แทนที่จะบีบตารางไว้ในกรอบเดียว
+     — แนวตั้งเลื่อนที่ระดับหน้าเว็บ, แนวนอน (ช่องวัน) เลื่อนในตัวตาราง */
+  .app { height: auto; min-height: 100dvh; overflow: visible; }
+  .table-wrap { flex: none; overflow: visible; }
+  .viewport { height: auto; overflow-x: auto; overflow-y: hidden; }
+  tfoot td { position: static; }
+
+  /* รายงานยังเป็นแผงลอยทับหน้าจอ ไม่เลื่อนหายไปกับหน้า */
+  .report { position: fixed; height: 80dvh; }
   .report .rp-body { grid-template-columns: 1fr; }
 }
 
