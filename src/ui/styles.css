@@ -254,8 +254,14 @@ td.cell { touch-action: manipulation; }
 
 /* จอเล็ก (มือถือ) */
 @media (max-width: 820px) {
-  :root { --col-name: 128px; --col-sum: 116px; }
+  :root { --col-name: 104px; --col-sum: 116px; --col-day: 32px; }
   body { font-size: 13px; }
+
+  /* มือถือ: เลิกปักคอลัมน์สรุปไว้ขวา — มันไปเบียดจนเห็นแค่ 1–2 วัน
+     ตอนนี้สรุปจะไปอยู่สุดขวาของตาราง เลื่อนไปดูได้ */
+  .col-sum, thead .col-sum, tfoot .col-sum {
+    position: static; z-index: auto;
+  }
 
   .toolbar { gap: 6px; padding: 8px 10px; }
   .toolbar .title { width: 100%; font-size: 14px; margin-bottom: 2px; }
