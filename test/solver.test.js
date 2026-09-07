@@ -174,6 +174,25 @@ test('solver: คนไม่พอ → coverage มาก่อนโควต�
   assert.equal(hardViolations(rep).length, 0);
 });
 
+test('solver: กะขาดไม่กี่จุด ไม่บล็อกการเวรคู่เพื่อให้ทุกคนหยุดตรงโควตา', () => {
+  // 14 คน x 30 วัน, ช5/บ4/ด3, หยุด 8 เป๊ะ — แน่นแต่ทำได้ (ต้องเวรคู่ ~52, เพดานรวม 56)
+  // เดิม: เหลือกะโหว่แค่ 1–2 จุด → restViaDoubles ยกเลิกทั้ง pass → ทุกคนค้างที่หยุด 5
+  const rules = mergeRules({
+    target: { 'ช': 5, 'บ': 4, 'ด': 3 }, offQuota: 8, offQuotaMode: 'exact', maxDoublesPerPerson: 4,
+  });
+  const roster = makeRoster({
+    days: 30, firstWeekday: 'จันทร์',
+    staff: Array.from({ length: 14 }, (_, i) => ({ name: 'N' + (i + 1) })),
+  });
+  const res = solve(roster, rules, { seed: 1 });
+  const rep = analyze(res.roster, rules);
+
+  const rests = rep.perPerson.map((p) => p.rest);
+  assert.ok(Math.min(...rests) >= 7, `ทุกคนต้องเข้าใกล้โควตา 8 (ได้ ${rests})`);
+  assert.ok(rep.perPerson.reduce((a, p) => a + p.doubles, 0) >= 30, 'ต้องใช้เวรคู่จริง ไม่ใช่ปล่อยผ่าน');
+  assert.equal(hardViolations(rep).length, 0);
+});
+
 test('solver: จัดซ้ำ / จัดหลังเพิ่มคน → เริ่มจากศูนย์ ไม่เพี้ยน', () => {
   const { roster, rules } = parseRoster(OCT2569);
   const tok = (r) => r.grid.map((row) => row.map((c) => c.shifts.join('+') || c.off || '.').join(',')).join('|');

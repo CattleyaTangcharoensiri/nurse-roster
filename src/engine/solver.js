@@ -537,11 +537,30 @@ function restViaDoubles(R, rules) {
   const N = R.staff.length;
   const active = rules.activeShifts.filter((s) => isShiftActive(rules, s));
 
-  // coverage ต้องครบก่อน — ถ้าวอร์ดยังมีกะไหนคนไม่ถึงขั้นต่ำ อย่าเพิ่งไปเกลี่ยวันหยุด
-  for (let d = 0; d < D; d++) {
-    for (const s of active) {
-      if (assignedCount(R, d, s) < bandForDay(R, rules, d, s).min) return;
+  // "ทุกคนหยุดตรงโควตา" เป็นไปได้ไหมด้วยการเวรคู่?
+  //   เวรคู่ที่ต้องใช้ = กะที่ต้องการทั้งเดือน − วันทำงานรวมเมื่อทุกคนหยุด Q
+  //   < 0  → คนล้น (บางคนต้องหยุดเกิน Q) — ดันวันหยุดไม่ได้อยู่ดี
+  //   > เพดานรวม → คนไม่พอจริง — ปล่อยให้ report โชว์ gap + คนทำงานเยอะ ดีกว่าโชว์หยุดเต็มวอร์ดว่าง
+  //   นอกนั้น → ทำได้ ลุยเลย (ข้าม "วันที่ยังขาดคน" ไว้ ไม่ไปยุ่งกับกะวันนั้น —
+  //   applyMove เป็นการสลับในวันเดียว coverage คงเดิม จึงไม่ทำ gap แย่ลง)
+  let slotsNeeded = 0;
+  for (let d = 0; d < D; d++) for (const s of active) slotsNeeded += bandForDay(R, rules, d, s).min;
+  let leaveT = 0;
+  let trainT = 0;
+  for (let i = 0; i < N; i++) {
+    for (const c of R.grid[i]) {
+      if (c.off === OFF.LEAVE) leaveT += 1;
+      else if (c.off === OFF.TRAINING) trainT += 1;
     }
+  }
+  const away = trainT + (rules.countLeaveInQuota ? 0 : leaveT);
+  const doublesNeededGlobal = slotsNeeded - (N * (D - rules.offQuota) - away);
+  const doubleCapGlobal = N * Math.max(0, rules.maxDoublesPerPerson);
+  if (doublesNeededGlobal < 0 || doublesNeededGlobal > doubleCapGlobal) return;
+
+  const dayCovered = [];
+  for (let d = 0; d < D; d++) {
+    dayCovered[d] = active.every((s) => assignedCount(R, d, s) >= bandForDay(R, rules, d, s).min);
   }
 
   const isRestCell = (c) => c.off === OFF.LOCKED || c.off === OFF.FILLED;
@@ -628,6 +647,7 @@ function restViaDoubles(R, rules) {
       if (entry.need <= 0) continue;
       const i = entry.i;
       for (let d = 0; d < D; d++) {
+        if (!dayCovered[d]) continue;
         const ci = R.grid[i][d];
         if (ci.locked || ci.shifts.length !== 1) continue;
         const q = bestTaker(i, d, ci.shifts[0]);
@@ -644,6 +664,7 @@ function restViaDoubles(R, rules) {
     while (entry.need > 0) {
       let moved = false;
       for (let d = 0; d < D && !moved; d++) {
+        if (!dayCovered[d]) continue;
         const ci = R.grid[entry.i][d];
         if (ci.locked || ci.shifts.length !== 1) continue;
         const q = bestTaker(entry.i, d, ci.shifts[0]);
